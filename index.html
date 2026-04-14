@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Threes - Family Card Game</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
+            background-color: #1a1a2e;
+            color: #efeaec;
+            padding-top: 50px;
+        }
+        .game-container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: #16213e;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        #last-card {
+            font-size: 4rem;
+            height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 4px dashed #0f3460;
+            border-radius: 15px;
+            margin: 20px 0;
+            background: #0f3460;
+        }
+        button {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            border-radius: 10px;
+            transition: transform 0.1s;
+        }
+        button:active { transform: scale(0.98); }
+        .draw-btn { background-color: #e94560; color: white; }
+        .discard-btn { background-color: #00d2ff; color: #1a1a2e; }
+        #log { font-style: italic; color: #95a5a6; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <h1>Threes</h1>
+        
+        <p>Last Card Discarded:</p>
+        <div id="last-card">---</div>
+
+        <button class="draw-btn" onclick="drawCard()">Draw New Card</button>
+        <button class="discard-btn" onclick="discardCard()">Discard a Card</button>
+
+        <p id="log">Game started...</p>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // Use a prompt so you and your sister can enter your names
+        const playerName = prompt("Enter your name:") || "Player";
+        const socket = io();
+
+        // When the server tells us a new card was discarded
+        socket.on('update-discard', (card) => {
+            document.getElementById('last-card').innerText = card;
+        });
+
+        // When the server tells us someone drew a card
+        socket.on('log-action', (message) => {
+            document.getElementById('log').innerText = message;
+        });
+
+        function drawCard() {
+            socket.emit('draw-event', playerName);
+        }
+
+        function discardCard() {
+            // For now, we'll just simulate a random card discard
+            const cards = ["3★", "Q♥", "10♠", "K♦", "J♣", "3♦", "7★"];
+            const randomCard = cards[Math.floor(Math.random() * cards.length)];
+            socket.emit('play-card', { player: playerName, card: randomCard });
+        }
+    </script>
+</body>
+</html>

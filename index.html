@@ -5,81 +5,93 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Threes - Big Jon Games</title>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #1a1a2e; color: white; margin: 0; overflow-x: hidden; }
+        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #1a1a2e; color: white; margin: 0; overflow-x: hidden; }
         
-        /* The Big Jon Splash Screen */
+        /* Splash Screen */
         #splash-screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #0f3460; display: flex; flex-direction: column;
             align-items: center; justify-content: center; z-index: 100;
         }
-        .logo-text { font-size: 4rem; font-weight: bold; color: #e94560; text-shadow: 3px 3px #16213e; margin-bottom: 10px; }
-        .sub-text { font-size: 1.2rem; color: #95a5a6; margin-bottom: 30px; }
+        .logo-text { font-size: 5rem; font-weight: bold; color: #e94560; text-shadow: 4px 4px #16213e; margin: 0; }
+        .sub-text { font-size: 1.5rem; color: #95a5a6; margin-bottom: 40px; letter-spacing: 2px; }
 
-        /* The Game Table (Hidden at first) */
-        #game-table { display: none; padding: 20px; }
+        /* Game Layout */
+        #game-table { display: none; padding: 20px; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .game-box { max-width: 600px; margin: 0 auto; background: #16213e; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         
-        .game-box { max-width: 500px; margin: 0 auto; background: #16213e; padding: 20px; border-radius: 15px; }
-        .hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 20px 0; min-height: 100px; padding: 10px; border: 2px solid #0f3460; border-radius: 10px; }
-        .card { background: white; color: black; padding: 10px; border-radius: 5px; font-weight: bold; min-width: 40px; cursor: pointer; box-shadow: 2px 2px 5px rgba(0,0,0,0.3); }
-        .discard-pile { font-size: 3rem; background: #0f3460; padding: 20px; border-radius: 10px; margin: 20px 0; border: 4px solid #e94560; }
-        button { padding: 15px; margin: 5px; font-size: 1.1rem; border-radius: 8px; border: none; cursor: pointer; transition: 0.2s; }
-        .start-btn { background: #e94560; color: white; width: 200px; }
-        .draw-btn { background: #27ae60; color: white; width: 100%; }
+        .discard-area { background: #0f3460; padding: 20px; border-radius: 15px; margin: 20px 0; border: 3px solid #e94560; }
+        #last-card { font-size: 4.5rem; font-weight: bold; height: 100px; display: flex; align-items: center; justify-content: center; }
+
+        .hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin: 25px 0; min-height: 120px; padding: 15px; background: rgba(15, 52, 96, 0.5); border-radius: 15px; border: 1px solid #1a1a2e; }
+        
+        .card { 
+            background: white; color: black; padding: 15px 10px; border-radius: 8px; 
+            font-weight: bold; font-size: 1.4rem; min-width: 50px; cursor: pointer; 
+            box-shadow: 3px 3px 8px rgba(0,0,0,0.4); transition: transform 0.2s; 
+        }
+        .card:hover { transform: translateY(-10px); }
+
+        /* Buttons */
+        button { padding: 15px 25px; margin: 8px; font-size: 1.1rem; font-weight: bold; border-radius: 10px; border: none; cursor: pointer; transition: 0.2s; }
+        button:active { transform: scale(0.95); }
+        .start-btn { background: #e94560; color: white; width: 250px; font-size: 1.4rem; }
+        .deal-btn { background: #f1c40f; color: #1a1a2e; width: 100%; }
+        .draw-btn { background: #27ae60; color: white; width: 48%; }
+        
+        #round-indicator { background: #0f3460; padding: 5px 15px; border-radius: 20px; font-weight: bold; color: #f1c40f; }
+        #log { font-style: italic; color: #95a5a6; margin-top: 15px; font-size: 0.9rem; }
     </style>
 </head>
 <body>
 
     <div id="splash-screen">
-        <div class="logo-text">BIG JON</div>
-        <div class="sub-text">GAMES PRESENTS: THREES</div>
+        <p class="sub-text">BIG JON GAMES</p>
+        <h1 class="logo-text">THREES</h1>
+        <p class="sub-text">FAMILY EDITION</p>
         <button class="start-btn" onclick="startGame()">ENTER GAME</button>
     </div>
 
     <div id="game-table">
         <div class="game-box">
-            <h2 id="player-display">---</h2>
-            <p>Last Discarded:</p>
-            <div id="last-card" class="discard-pile">---</div>
-            <button class="draw-btn" onclick="drawFromDeck()">Draw New Card</button>
-            <h3>My Hand:</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span id="player-display">Seat: ---</span>
+                <span id="round-indicator">Round 1</span>
+            </div>
+
+            <div class="discard-area">
+                <p style="margin: 0; color: #95a5a6; font-size: 0.8rem;">DISCARD PILE</p>
+                <div id="last-card">---</div>
+            </div>
+
+            <button class="deal-btn" onclick="startNextRound()">DEAL NEXT ROUND</button>
+            <div style="display: flex; justify-content: space-between;">
+                <button class="draw-btn" onclick="drawFromDeck()">DRAW CARD</button>
+                <button class="draw-btn" style="background:#34495e;" onclick="renderHand()">TIDY HAND</button>
+            </div>
+
+            <h3>My Hand</h3>
             <div id="my-hand" class="hand"></div>
-            <p id="log" style="font-style: italic; color: #95a5a6;">Waiting for action...</p>
+
+            <p id="log">Waiting to start...</p>
         </div>
     </div>
 
- <script src="/socket.io/socket.io.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
         let myName = "";
         let myHand = [];
-        let currentRound = 1; // Round 1 deals 3 cards
+        let currentRound = 1;
+        let gameDeck = [];
 
         function startGame() {
-            myName = prompt("Enter your name to join the table:") || "Player";
+            myName = prompt("Who's playing today?") || "Player";
             document.getElementById('player-display').innerText = "Seat: " + myName;
             document.getElementById('splash-screen').style.display = 'none';
             document.getElementById('game-table').style.display = 'block';
-        }
-
-        // The "Brain" of the Round System
-        function startNextRound() {
-            // Clear current hand and shuffle a fresh deck
-            myHand = [];
-            gameDeck = createDeck();
-            
-            // Calculate how many cards to deal: Round 1 = 3, Round 2 = 4, etc.
-            let cardsToDeal = currentRound + 2;
-            
-            for(let i = 0; i < cardsToDeal; i++) {
-                drawFromDeck();
-            }
-
-            document.getElementById('log').innerText = "Started Round " + currentRound + " (" + cardsToDeal + " cards dealt)";
-            
-            // Advance the round for next time
-            currentRound++;
-            renderHand();
         }
 
         function createDeck() {
@@ -90,20 +102,45 @@
             return deck.sort(() => Math.random() - 0.5);
         }
 
-        let gameDeck = createDeck();
+        function startNextRound() {
+            // Check if we reached the end (usually round 11 in Five Kings)
+            if (currentRound > 11) {
+                if(!confirm("Game over! Restart from Round 1?")) return;
+                currentRound = 1;
+            }
+
+            myHand = [];
+            gameDeck = createDeck();
+            
+            // Logic: Round 1 (3 cards), Round 2 (4 cards), etc.
+            let cardsToDeal = currentRound + 2;
+            
+            for(let i = 0; i < cardsToDeal; i++) {
+                if(gameDeck.length > 0) {
+                    myHand.push(gameDeck.pop());
+                }
+            }
+
+            document.getElementById('round-indicator').innerText = "Round " + currentRound;
+            document.getElementById('log').innerText = "Dealt " + cardsToDeal + " cards for Round " + currentRound;
+            
+            currentRound++; 
+            renderHand();
+        }
 
         function drawFromDeck() {
-            if(gameDeck.length > 0) {
-                const card = gameDeck.pop();
-                myHand.push(card);
-                renderHand();
-                socket.emit('draw-event', myName);
-            }
+            if(gameDeck.length === 0) gameDeck = createDeck(); // Auto-reshuffle if empty
+            const card = gameDeck.pop();
+            myHand.push(card);
+            renderHand();
+            socket.emit('draw-event', myName);
         }
 
         function renderHand() {
             const handDiv = document.getElementById('my-hand');
             handDiv.innerHTML = '';
+            
+            // Sort hand loosely (optional, but nice for parents)
             myHand.forEach((card, index) => {
                 const cardEl = document.createElement('div');
                 cardEl.className = 'card';
@@ -123,12 +160,15 @@
 
         socket.on('update-discard', (card) => {
             document.getElementById('last-card').innerText = card;
+            if(card.includes('♥') || card.includes('♦')) {
+                document.getElementById('last-card').style.color = "#e74c3c";
+            } else {
+                document.getElementById('last-card').style.color = "white";
+            }
         });
 
         socket.on('log-action', (msg) => {
             document.getElementById('log').innerText = msg;
-        });
-    </script>
         });
     </script>
 </body>

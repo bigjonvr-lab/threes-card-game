@@ -6,7 +6,7 @@ const path = require('path');
 
 // Tell the server to show your index.html file
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__currentDir, 'index.html'));
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 io.on('connection', (socket) => {

@@ -13,13 +13,13 @@
         .discard-area { background: #0f3460; padding: 15px; border-radius: 15px; margin: 15px 0; border: 3px solid #e94560; }
         #last-card { font-size: 4rem; font-weight: bold; height: 90px; display: flex; align-items: center; justify-content: center; }
         .hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 15px 0; min-height: 100px; }
-        .card { background: white; color: black; padding: 12px 8px; border-radius: 8px; font-weight: bold; font-size: 1.2rem; min-width: 45px; cursor: pointer; border: 2px solid #ccc; }
-        .card.selected-points { border: 4px solid #e94560; background: #ffebee; transform: scale(1.1); }
+        .card { background: white; color: black; padding: 12px 8px; border-radius: 8px; font-weight: bold; font-size: 1.2rem; min-width: 45px; cursor: pointer; border: 2px solid #ccc; transition: 0.2s; }
+        .card.selected-points { border: 4px solid #e94560; background: #ff7675; transform: scale(1.1); color: white; }
         button { padding: 12px; margin: 5px; font-size: 1rem; font-weight: bold; border-radius: 8px; border: none; cursor: pointer; transition: 0.3s; }
         button:disabled { background: #34495e !important; color: #7f8c8d !important; opacity: 0.5; }
         .deal-btn { background: #f1c40f; color: #1a1a2e; width: 100%; }
         .out-btn { background: #e94560; color: white; width: 100%; }
-        .end-btn { background: #8e44ad; color: white; width: 100%; display: none; }
+        .end-btn { background: #8e44ad; color: white; width: 100%; display: none; border: 2px solid white; }
         .scoreboard { background: #1a1a2e; padding: 10px; border-radius: 10px; margin-top: 15px; text-align: left; }
     </style>
 </head>
@@ -27,15 +27,15 @@
 
     <div id="splash-screen">
         <h1 class="logo-text">THREES</h1>
-        <p style="color: #95a5a6;">BIG JON GAMES</p>
-        <button onclick="startGame()" style="background:#e94560; color:white; width:200px; font-size:1.5rem;">ENTER</button>
+        <p style="color: #95a5a6; letter-spacing: 2px;">BIG JON GAMES</p>
+        <button onclick="startGame()" style="background:#e94560; color:white; width:200px; font-size:1.5rem; box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4);">ENTER</button>
     </div>
 
     <div id="game-table">
         <div class="game-box">
             <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                <span id="player-display">---</span>
-                <span id="turn-msg" style="color:#f1c40f;">Waiting...</span>
+                <span id="player-display" style="font-weight:bold;">---</span>
+                <span id="turn-msg" style="color:#f1c40f; font-weight:bold;">Waiting...</span>
             </div>
 
             <div class="discard-area"><div id="last-card">---</div></div>
@@ -46,17 +46,17 @@
                 <button id="pickup-btn" style="background:#00d2ff; color:black; width:48%;" onclick="pickUpDiscard()">TAKE</button>
             </div>
 
-            <p id="instruction" style="font-size: 0.8rem; color: #f1c40f;">Tap cards to discard on your turn.</p>
+            <p id="instruction" style="font-size: 0.8rem; color: #95a5a6;">Select card to discard on your turn.</p>
             <div class="hand" id="my-hand"></div>
 
             <button id="out-btn" class="out-btn" onclick="triggerOut()">I'M GOING OUT (0 pts)</button>
-            <button id="end-btn" class="end-btn" onclick="submitFinalScore()">END ROUND & SUBMIT SCORE</button>
+            <button id="end-btn" class="end-btn" onclick="submitFinalScore()">SUBMIT SCORE</button>
 
             <div class="scoreboard">
-                <h4 style="margin:0 0 5px 0;">Scores</h4>
+                <h4 style="margin:0 0 5px 0; border-bottom: 1px solid #34495e;">Live Standings</h4>
                 <div id="scores-list"></div>
             </div>
-            <p id="log" style="font-size:0.8rem; color:#95a5a6;"></p>
+            <p id="log" style="font-size:0.75rem; color:#95a5a6; margin-top:10px;"></p>
         </div>
     </div>
 
@@ -69,7 +69,7 @@
 
         function startGame() {
             myName = prompt("Enter name:") || "Player";
-            document.getElementById('player-display').innerText = myName;
+            document.getElementById('player-display').innerText = "Seat: " + myName;
             document.getElementById('splash-screen').style.display = 'none';
             document.getElementById('game-table').style.display = 'block';
             socket.emit('join-game', myName);
@@ -85,15 +85,17 @@
 
         function startNextRound() {
             myHand = []; gameDeck = createDeck();
-            for(let i=0; i<(currentRound+2); i++) myHand.push(gameDeck.pop());
+            let count = currentRound + 2;
+            for(let i=0; i<count; i++) myHand.push(gameDeck.pop());
             renderHand();
+            socket.emit('log-action', "Round " + currentRound + " started (" + count + " cards).");
         }
 
         function drawFromDeck() {
             if(!isMyTurn) return;
+            if(gameDeck.length === 0) gameDeck = createDeck();
             myHand.push(gameDeck.pop());
             renderHand();
-            socket.emit('log-action', myName + " drew.");
             document.getElementById('draw-btn').disabled = true;
             document.getElementById('pickup-btn').disabled = true;
         }
@@ -120,7 +122,6 @@
                     if (isMyTurn) {
                         discard(i);
                     } else if (isRoundEnding) {
-                        // Toggle card for scoring
                         div.classList.toggle('selected-points');
                         togglePointCard(card);
                     }
@@ -144,11 +145,11 @@
 
         function triggerOut() {
             if(!isMyTurn) return;
-            if(confirm("Are all your cards matched? Going out gives you 0 points.")) {
+            if(confirm("Confirm: All cards are matched? This round score = 0.")) {
                 socket.emit('trigger-out', myName);
                 totalScore += 0;
                 socket.emit('submit-score', {name: myName, score: totalScore});
-                discard(0); // Player must still discard to end turn
+                discard(0); 
             }
         }
 
@@ -156,15 +157,19 @@
             let pts = 0;
             pointsToSubmit.forEach(card => {
                 let val = card.replace(/[♥♦♣♠]/, '');
-                if (['J','Q','K'].includes(val)) pts += 10;
-                else if (val === 'A') pts += 10; 
-                else if (val === '3' && currentRound === 1) pts += 1; // Example wild
-                else pts += parseInt(val);
+                
+                // --- SCORING RULES ---
+                if (val === 'A') pts += 1; // Ace = 1 pt
+                else if (val === '3' && currentRound === 1) pts += 1; // Wild Round 1 = 1 pt
+                else if (['J','Q','K'].includes(val)) pts += 10; // Faces = 10 pts
+                else pts += parseInt(val); // Numbers = Face value
             });
+
             totalScore += pts;
             socket.emit('submit-score', {name: myName, score: totalScore});
-            alert("Score submitted: " + pts);
+            alert("Points added: " + pts);
             document.getElementById('end-btn').style.display = 'none';
+            pointsToSubmit = [];
             currentRound++;
         }
 
@@ -172,12 +177,15 @@
             isMyTurn = (data.activePlayer === myName);
             isRoundEnding = data.isEnding;
             document.getElementById('turn-msg').innerText = isMyTurn ? "YOUR TURN" : data.activePlayer + "'s Turn";
+            document.getElementById('turn-msg').style.color = isMyTurn ? "#27ae60" : "#f1c40f";
+            
             document.getElementById('draw-btn').disabled = !isMyTurn;
             document.getElementById('pickup-btn').disabled = !isMyTurn;
             document.getElementById('out-btn').disabled = !isMyTurn;
 
             if (isRoundEnding) {
-                document.getElementById('instruction').innerText = "ROUND ENDING soon. Select unmatched cards for points.";
+                document.getElementById('instruction').innerText = "ROUND OVER: Tap unmatched cards for points!";
+                document.getElementById('instruction').style.color = "#e94560";
                 document.getElementById('end-btn').style.display = 'block';
             }
         });
@@ -185,14 +193,21 @@
         socket.on('submit-score', (data) => {
             const list = document.getElementById('scores-list');
             let el = document.getElementById('s-' + data.name);
-            if(!el) { el = document.createElement('div'); el.id = 's-'+data.name; list.appendChild(el); }
-            el.innerHTML = `<small>${data.name}: ${data.score}</small>`;
+            if(!el) { 
+                el = document.createElement('div'); 
+                el.id = 's-'+data.name; 
+                el.style.display = 'flex';
+                el.style.justifyContent = 'space-between';
+                list.appendChild(el); 
+            }
+            el.innerHTML = `<span>${data.name}</span> <span style="font-weight:bold;">${data.score}</span>`;
         });
 
         socket.on('update-discard', (card) => {
             currentDiscard = card;
-            document.getElementById('last-card').innerText = card;
-            document.getElementById('last-card').style.color = (card.includes('♥') || card.includes('♦')) ? 'red' : 'white';
+            const display = document.getElementById('last-card');
+            display.innerText = card;
+            display.style.color = (card.includes('♥') || card.includes('♦')) ? 'red' : 'white';
         });
 
         socket.on('log-action', (msg) => document.getElementById('log').innerText = msg);

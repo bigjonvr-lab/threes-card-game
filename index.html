@@ -13,8 +13,8 @@
         .discard-area { background: #0f3460; padding: 15px; border-radius: 15px; margin: 15px 0; border: 3px solid #e94560; }
         #last-card { font-size: 4rem; font-weight: bold; height: 90px; display: flex; align-items: center; justify-content: center; }
         .hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 15px 0; min-height: 100px; }
-        .card { background: white; color: black; padding: 12px 8px; border-radius: 8px; font-weight: bold; font-size: 1.2rem; min-width: 45px; cursor: pointer; border: 2px solid #ccc; transition: 0.2s; }
-        .card.selected-points { border: 4px solid #e94560; background: #ff7675; transform: scale(1.1); color: white; }
+        .card { background: white; color: black; padding: 12px 8px; border-radius: 8px; font-weight: bold; font-size: 1.2rem; min-width: 45px; cursor: pointer; border: 2px solid #ccc; }
+        .card.selected-points { border: 4px solid #e94560; background: #ff7675; color: white; transform: scale(1.1); }
         button { padding: 12px; margin: 5px; font-size: 1rem; font-weight: bold; border-radius: 8px; border: none; cursor: pointer; transition: 0.3s; }
         button:disabled { background: #34495e !important; color: #7f8c8d !important; opacity: 0.5; }
         .deal-btn { background: #f1c40f; color: #1a1a2e; width: 100%; }
@@ -28,32 +28,31 @@
     <div id="splash-screen">
         <h1 class="logo-text">THREES</h1>
         <p style="color: #95a5a6; letter-spacing: 2px;">BIG JON GAMES</p>
-        <button onclick="startGame()" style="background:#e94560; color:white; width:200px; font-size:1.5rem; box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4);">ENTER</button>
+        <button onclick="startGame()" style="background:#e94560; color:white; width:200px; font-size:1.5rem;">ENTER</button>
     </div>
 
     <div id="game-table">
         <div class="game-box">
             <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
                 <span id="player-display" style="font-weight:bold;">---</span>
-                <span id="turn-msg" style="color:#f1c40f; font-weight:bold;">Waiting...</span>
+                <span id="round-info" style="color:#f1c40f; font-weight:bold;">Round: 3 Cards (Wild: 3s)</span>
             </div>
 
             <div class="discard-area"><div id="last-card">---</div></div>
 
-            <button class="deal-btn" onclick="startNextRound()">DEAL NEXT ROUND</button>
+            <button class="deal-btn" id="deal-btn" onclick="startNextRound()">DEAL ROUND</button>
             <div style="display: flex; justify-content: space-between;">
                 <button id="draw-btn" style="background:#27ae60; color:white; width:48%;" onclick="drawFromDeck()">DRAW</button>
                 <button id="pickup-btn" style="background:#00d2ff; color:black; width:48%;" onclick="pickUpDiscard()">TAKE</button>
             </div>
 
-            <p id="instruction" style="font-size: 0.8rem; color: #95a5a6;">Select card to discard on your turn.</p>
             <div class="hand" id="my-hand"></div>
 
             <button id="out-btn" class="out-btn" onclick="triggerOut()">I'M GOING OUT (0 pts)</button>
             <button id="end-btn" class="end-btn" onclick="submitFinalScore()">SUBMIT SCORE</button>
 
             <div class="scoreboard">
-                <h4 style="margin:0 0 5px 0; border-bottom: 1px solid #34495e;">Live Standings</h4>
+                <h4 style="margin:0 0 5px 0;">Standings</h4>
                 <div id="scores-list"></div>
             </div>
             <p id="log" style="font-size:0.75rem; color:#95a5a6; margin-top:10px;"></p>
@@ -63,13 +62,14 @@
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        let myName = "", myHand = [], currentRound = 1, gameDeck = [], currentDiscard = "---";
+        let myName = "", myHand = [], gameDeck = [], currentDiscard = "---";
         let isMyTurn = false, isRoundEnding = false, pointsToSubmit = [];
         let totalScore = 0;
+        let cardsThisRound = 3; 
 
         function startGame() {
             myName = prompt("Enter name:") || "Player";
-            document.getElementById('player-display').innerText = "Seat: " + myName;
+            document.getElementById('player-display').innerText = myName;
             document.getElementById('splash-screen').style.display = 'none';
             document.getElementById('game-table').style.display = 'block';
             socket.emit('join-game', myName);
@@ -79,16 +79,33 @@
             const suits = ['♥', '♦', '♣', '♠'];
             const values = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
             let deck = [];
-            suits.forEach(s => values.forEach(v => deck.push(v + s)));
+            for(let i=0; i<2; i++) {
+                suits.forEach(s => values.forEach(v => deck.push(v + s)));
+            }
             return deck.sort(() => Math.random() - 0.5);
         }
 
+        function getWildName(num) {
+            if (num <= 10) return num + "s";
+            if (num === 11) return "Jacks";
+            if (num === 12) return "Queens";
+            if (num === 13) return "Kings";
+            return num;
+        }
+
         function startNextRound() {
-            myHand = []; gameDeck = createDeck();
-            let count = currentRound + 2;
-            for(let i=0; i<count; i++) myHand.push(gameDeck.pop());
+            if (cardsThisRound > 13) {
+                alert("Game is finished! Refresh to start over.");
+                return;
+            }
+            myHand = [];
+            gameDeck = createDeck();
+            for(let i=0; i < cardsThisRound; i++) {
+                myHand.push(gameDeck.pop());
+            }
+            document.getElementById('round-info').innerText = "Round: " + cardsThisRound + " Cards (Wild: " + getWildName(cardsThisRound) + ")";
             renderHand();
-            socket.emit('log-action', "Round " + currentRound + " started (" + count + " cards).");
+            socket.emit('log-action', myName + " dealt the " + cardsThisRound + " card round.");
         }
 
         function drawFromDeck() {
@@ -117,11 +134,9 @@
                 div.className = 'card';
                 if(card.includes('♥') || card.includes('♦')) div.style.color = 'red';
                 div.innerText = card;
-                
                 div.onclick = () => {
-                    if (isMyTurn) {
-                        discard(i);
-                    } else if (isRoundEnding) {
+                    if (isMyTurn) discard(i);
+                    else if (isRoundEnding) {
                         div.classList.toggle('selected-points');
                         togglePointCard(card);
                     }
@@ -145,7 +160,7 @@
 
         function triggerOut() {
             if(!isMyTurn) return;
-            if(confirm("Confirm: All cards are matched? This round score = 0.")) {
+            if(confirm("Going out? You'll get 0 points.")) {
                 socket.emit('trigger-out', myName);
                 totalScore += 0;
                 socket.emit('submit-score', {name: myName, score: totalScore});
@@ -156,58 +171,66 @@
         function submitFinalScore() {
             let pts = 0;
             pointsToSubmit.forEach(card => {
-                let val = card.replace(/[♥♦♣♠]/, '');
+                let valStr = card.replace(/[♥♦♣♠]/, '');
+                let valNum = 0;
                 
-                // --- SCORING RULES ---
-                if (val === 'A') pts += 1; // Ace = 1 pt
-                else if (val === '3' && currentRound === 1) pts += 1; // Wild Round 1 = 1 pt
-                else if (['J','Q','K'].includes(val)) pts += 10; // Faces = 10 pts
-                else pts += parseInt(val); // Numbers = Face value
+                // Value mapping for logic
+                if (valStr === 'A') valNum = 1;
+                else if (valStr === 'J') valNum = 11;
+                else if (valStr === 'Q') valNum = 12;
+                else if (valStr === 'K') valNum = 13;
+                else valNum = parseInt(valStr);
+
+                // Wild check: If the card value matches the round card count, it's 1 pt
+                if (valNum === cardsThisRound) {
+                    pts += 1;
+                } else if (valNum === 1) {
+                    pts += 1; // Aces are always 1
+                } else if (valNum >= 11) {
+                    pts += 10; // Unmatched face cards are 10
+                } else {
+                    pts += valNum; // Regular numbers
+                }
             });
 
             totalScore += pts;
             socket.emit('submit-score', {name: myName, score: totalScore});
             alert("Points added: " + pts);
+            
             document.getElementById('end-btn').style.display = 'none';
             pointsToSubmit = [];
-            currentRound++;
+            
+            cardsThisRound++; 
+            if(cardsThisRound > 13) {
+                document.getElementById('round-info').innerText = "GAME OVER";
+                document.getElementById('deal-btn').disabled = true;
+                socket.emit('log-action', "The final round is complete! Check the winner!");
+            } else {
+                document.getElementById('round-info').innerText = "Next Round: " + cardsThisRound + " Cards (Wild: " + getWildName(cardsThisRound) + ")";
+            }
         }
 
         socket.on('update-turn', (data) => {
             isMyTurn = (data.activePlayer === myName);
             isRoundEnding = data.isEnding;
             document.getElementById('turn-msg').innerText = isMyTurn ? "YOUR TURN" : data.activePlayer + "'s Turn";
-            document.getElementById('turn-msg').style.color = isMyTurn ? "#27ae60" : "#f1c40f";
-            
             document.getElementById('draw-btn').disabled = !isMyTurn;
             document.getElementById('pickup-btn').disabled = !isMyTurn;
             document.getElementById('out-btn').disabled = !isMyTurn;
-
-            if (isRoundEnding) {
-                document.getElementById('instruction').innerText = "ROUND OVER: Tap unmatched cards for points!";
-                document.getElementById('instruction').style.color = "#e94560";
-                document.getElementById('end-btn').style.display = 'block';
-            }
+            if (isRoundEnding) document.getElementById('end-btn').style.display = 'block';
         });
 
         socket.on('submit-score', (data) => {
             const list = document.getElementById('scores-list');
             let el = document.getElementById('s-' + data.name);
-            if(!el) { 
-                el = document.createElement('div'); 
-                el.id = 's-'+data.name; 
-                el.style.display = 'flex';
-                el.style.justifyContent = 'space-between';
-                list.appendChild(el); 
-            }
-            el.innerHTML = `<span>${data.name}</span> <span style="font-weight:bold;">${data.score}</span>`;
+            if(!el) { el = document.createElement('div'); el.id = 's-'+data.name; list.appendChild(el); }
+            el.innerHTML = `<small>${data.name}: <b>${data.score}</b></small>`;
         });
 
         socket.on('update-discard', (card) => {
             currentDiscard = card;
-            const display = document.getElementById('last-card');
-            display.innerText = card;
-            display.style.color = (card.includes('♥') || card.includes('♦')) ? 'red' : 'white';
+            document.getElementById('last-card').innerText = card;
+            document.getElementById('last-card').style.color = (card.includes('♥') || card.includes('♦')) ? 'red' : 'white';
         });
 
         socket.on('log-action', (msg) => document.getElementById('log').innerText = msg);

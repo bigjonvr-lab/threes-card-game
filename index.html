@@ -3,91 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Threes - Family Card Game</title>
+    <title>Threes - Big Jon Games</title>
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            text-align: center;
-            background-color: #1a1a2e;
-            color: #efeaec;
-            padding-top: 50px;
+        body { font-family: sans-serif; text-align: center; background: #1a1a2e; color: white; margin: 0; overflow-x: hidden; }
+        
+        /* The Big Jon Splash Screen */
+        #splash-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #0f3460; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 100;
         }
-        .game-container {
-            max-width: 400px;
-            margin: 0 auto;
-            background: #16213e;
-            padding: 30px;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-        #last-card {
-            font-size: 4rem;
-            height: 120px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 4px dashed #0f3460;
-            border-radius: 15px;
-            margin: 20px 0;
-            background: #0f3460;
-        }
-        button {
-            width: 100%;
-            padding: 15px;
-            margin: 10px 0;
-            font-size: 1.2rem;
-            font-weight: bold;
-            cursor: pointer;
-            border: none;
-            border-radius: 10px;
-            transition: transform 0.1s;
-        }
-        button:active { transform: scale(0.98); }
-        .draw-btn { background-color: #e94560; color: white; }
-        .discard-btn { background-color: #00d2ff; color: #1a1a2e; }
-        #log { font-style: italic; color: #95a5a6; margin-top: 20px; }
+        .logo-text { font-size: 4rem; font-weight: bold; color: #e94560; text-shadow: 3px 3px #16213e; margin-bottom: 10px; }
+        .sub-text { font-size: 1.2rem; color: #95a5a6; margin-bottom: 30px; }
+
+        /* The Game Table (Hidden at first) */
+        #game-table { display: none; padding: 20px; }
+        
+        .game-box { max-width: 500px; margin: 0 auto; background: #16213e; padding: 20px; border-radius: 15px; }
+        .hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 20px 0; min-height: 100px; padding: 10px; border: 2px solid #0f3460; border-radius: 10px; }
+        .card { background: white; color: black; padding: 10px; border-radius: 5px; font-weight: bold; min-width: 40px; cursor: pointer; box-shadow: 2px 2px 5px rgba(0,0,0,0.3); }
+        .discard-pile { font-size: 3rem; background: #0f3460; padding: 20px; border-radius: 10px; margin: 20px 0; border: 4px solid #e94560; }
+        button { padding: 15px; margin: 5px; font-size: 1.1rem; border-radius: 8px; border: none; cursor: pointer; transition: 0.2s; }
+        .start-btn { background: #e94560; color: white; width: 200px; }
+        .draw-btn { background: #27ae60; color: white; width: 100%; }
     </style>
 </head>
 <body>
 
-    <div class="game-container">
-        <h1>Threes</h1>
-        
-        <p>Last Card Discarded:</p>
-        <div id="last-card">---</div>
+    <div id="splash-screen">
+        <div class="logo-text">BIG JON</div>
+        <div class="sub-text">GAMES PRESENTS: THREES</div>
+        <button class="start-btn" onclick="startGame()">ENTER GAME</button>
+    </div>
 
-        <button class="draw-btn" onclick="drawCard()">Draw New Card</button>
-        <button class="discard-btn" onclick="discardCard()">Discard a Card</button>
-
-        <p id="log">Game started...</p>
+    <div id="game-table">
+        <div class="game-box">
+            <h2 id="player-display">---</h2>
+            <p>Last Discarded:</p>
+            <div id="last-card" class="discard-pile">---</div>
+            <button class="draw-btn" onclick="drawFromDeck()">Draw New Card</button>
+            <h3>My Hand:</h3>
+            <div id="my-hand" class="hand"></div>
+            <p id="log" style="font-style: italic; color: #95a5a6;">Waiting for action...</p>
+        </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // Use a prompt so you and your sister can enter your names
-        const playerName = prompt("Enter your name:") || "Player";
         const socket = io();
+        let myName = "";
+        let myHand = [];
 
-        // When the server tells us a new card was discarded
+        function startGame() {
+            myName = prompt("Enter your name to join the table:") || "Player";
+            document.getElementById('player-display').innerText = "Seat: " + myName;
+            
+            // Hide splash, show game
+            document.getElementById('splash-screen').style.display = 'none';
+            document.getElementById('game-table').style.display = 'block';
+        }
+
+        function createDeck() {
+            const suits = ['♥', '♦', '♣', '♠'];
+            const values = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+            let deck = [];
+            suits.forEach(s => { values.forEach(v => { deck.push(v + s); }); });
+            return deck.sort(() => Math.random() - 0.5);
+        }
+
+        let gameDeck = createDeck();
+
+        function drawFromDeck() {
+            if(gameDeck.length > 0) {
+                const card = gameDeck.pop();
+                myHand.push(card);
+                renderHand();
+                socket.emit('draw-event', myName);
+            }
+        }
+
+        function renderHand() {
+            const handDiv = document.getElementById('my-hand');
+            handDiv.innerHTML = '';
+            myHand.forEach((card, index) => {
+                const cardEl = document.createElement('div');
+                cardEl.className = 'card';
+                if(card.includes('♥') || card.includes('♦')) cardEl.style.color = "#e74c3c";
+                cardEl.innerText = card;
+                cardEl.onclick = () => discard(index);
+                handDiv.appendChild(cardEl);
+            });
+        }
+
+        function discard(index) {
+            const card = myHand[index];
+            myHand.splice(index, 1);
+            renderHand();
+            socket.emit('play-card', { player: myName, card: card });
+        }
+
         socket.on('update-discard', (card) => {
             document.getElementById('last-card').innerText = card;
         });
 
-        // When the server tells us someone drew a card
-        socket.on('log-action', (message) => {
-            document.getElementById('log').innerText = message;
+        socket.on('log-action', (msg) => {
+            document.getElementById('log').innerText = msg;
         });
-
-        function drawCard() {
-            socket.emit('draw-event', playerName);
-        }
-
-        function discardCard() {
-            // For now, we'll just simulate a random card discard
-            const cards = ["3★", "Q♥", "10♠", "K♦", "J♣", "3♦", "7★"];
-            const randomCard = cards[Math.floor(Math.random() * cards.length)];
-            socket.emit('play-card', { player: playerName, card: randomCard });
-        }
     </script>
 </body>
 </html>

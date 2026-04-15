@@ -11,9 +11,7 @@ let rooms = {};
 
 function getActiveRooms() {
     return Object.keys(rooms).map(id => ({
-        id,
-        count: rooms[id].players.length,
-        started: rooms[id].started
+        id, count: rooms[id].players.length, started: rooms[id].started
     }));
 }
 
@@ -33,10 +31,13 @@ io.on('connection', (socket) => {
                 outPlayer: "", deckCount: 1, started: false
             };
         }
-
         let r = rooms[rid];
         if (!r.players.find(p => p.name === data.name)) {
-            r.players.push({ name: data.name, score: 0, ready: false, hand: [] });
+            r.players.push({ name: data.name, score: 0, ready: false, hand: [], socketId: socket.id });
+        } else {
+            // Update socket ID if they reconnected
+            const p = r.players.find(p => p.name === data.name);
+            p.socketId = socket.id;
         }
 
         io.to(rid).emit('update-lobby', r.players);
@@ -46,20 +47,8 @@ io.on('connection', (socket) => {
             socket.emit('game-transition');
             socket.emit('sync-round', r.round);
             socket.emit('update-discard', r.discard);
-            socket.emit('trigger-card-request');
-            io.to(rid).emit('update-turn', { activePlayer: r.players[r.activeIdx].name, isEnding: r.isEnding });
+            socket.emit('receive-hand', r.players.find(p => p.name === data.name).hand);
         }
-    });
-
-    socket.on('set-decks', (num) => {
-        if(rooms[socket.roomId]) rooms[socket.roomId].deckCount = parseInt(num);
-    });
-
-    socket.on('player-ready', () => {
-        let r = rooms[socket.roomId];
-        if (!r) return;
-        const p = r.players.find(p => p.name === socket.playerName);
-        if (p) { p.ready = true; io.to(socket.roomId).emit('update-lobby', r.players); }
     });
 
     socket.on('start-game-rotation', () => {
@@ -71,18 +60,19 @@ io.on('connection', (socket) => {
         if(!r) return;
         const p = r.players.find(pl => pl.name === socket.playerName);
         if(p && data.card !== "---") {
-            p.hand = p.hand.filter(c => c !== data.card);
+            const index = p.hand.indexOf(data.card);
+            if (index > -1) p.hand.splice(index, 1);
         }
         r.discard = data.card;
         io.to(socket.roomId).emit('update-discard', r.discard);
         nextTurn(socket.roomId);
     });
 
-    socket.on('request-cards', (name) => {
+    socket.on('request-cards', () => {
         let r = rooms[socket.roomId];
         if(r) {
-            const p = r.players.find(player => player.name === name);
-            if (p) socket.emit('receive-hand-' + p.name, p.hand);
+            const p = r.players.find(pl => pl.name === socket.playerName);
+            if (p) socket.emit('receive-hand', p.hand);
         }
     });
 
@@ -102,8 +92,6 @@ io.on('connection', (socket) => {
         if (p) { p.score += data.points; io.to(socket.roomId).emit('update-lobby', r.players); }
     });
 
-    socket.on('broadcast-hand', (data) => { io.to(socket.roomId).emit('log-hand-reveal', data); });
-
     socket.on('next-round-setup', () => {
         let r = rooms[socket.roomId];
         if(!r) return;
@@ -115,22 +103,17 @@ io.on('connection', (socket) => {
     });
 
     socket.on('reset-whole-game', () => {
-        const rid = socket.roomId;
-        if(rooms[rid]) {
+        if(rooms[socket.roomId]) {
+            const rid = socket.roomId;
             delete rooms[rid];
             io.to(rid).emit('game-reset-broadcast');
             io.emit('room-list', getActiveRooms());
         }
     });
-
-    socket.on('disconnect', () => {
-        io.emit('room-list', getActiveRooms());
-    });
 });
 
 function initGame(roomId) {
     let r = rooms[roomId];
-    if(!r) return;
     r.deck = [];
     r.started = true;
     const suits = ['♥', '♦', '♣', '♠'], values = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
@@ -139,12 +122,11 @@ function initGame(roomId) {
     }
     r.deck.sort(() => Math.random() - 0.5);
     
-    // Distribute cards to each player's data on server
     r.players.forEach(p => {
         p.hand = [];
-        for (let i = 0; i < r.round; i++) {
-            if (r.deck.length > 0) p.hand.push(r.deck.pop());
-        }
+        for (let i = 0; i < r.round; i++) { p.hand.push(r.deck.pop()); }
+        // Send directly to this player's specific socket
+        io.to(p.socketId).emit('receive-hand', p.hand);
     });
 
     io.to(roomId).emit('shuffle-transition');
@@ -154,7 +136,6 @@ function initGame(roomId) {
         io.to(roomId).emit('sync-round', r.round);
         io.to(roomId).emit('update-discard', r.discard);
         io.to(roomId).emit('game-transition');
-        io.to(roomId).emit('trigger-card-request');
         r.activeIdx = 0;
         io.to(roomId).emit('update-turn', { activePlayer: r.players[0].name, isEnding: false });
     }, 3000);
@@ -162,7 +143,6 @@ function initGame(roomId) {
 
 function nextTurn(roomId) {
     let r = rooms[roomId];
-    if(!r) return;
     r.activeIdx = (r.activeIdx + 1) % r.players.length;
     if (r.isEnding && r.players[r.activeIdx].name === r.outPlayer) {
         io.to(roomId).emit('force-score-view');

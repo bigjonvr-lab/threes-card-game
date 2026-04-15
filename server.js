@@ -62,14 +62,15 @@ io.on('connection', (socket) => {
     });
 
     socket.on('play-card', (data) => {
-        // Update the visual pile for everyone
         io.emit('update-discard', data.card);
-
-        // ONLY rotate the turn if a real player discarded
+        
         if (data.player !== "System") {
             turnIndex = (turnIndex + 1) % players.length;
+            
+            // If the next player up is the person who went out, the round is OVER.
             if (roundEnding && players[turnIndex].id === stopperId) {
-                io.emit('force-score-view');
+                io.emit('force-score-view'); // Tell EVERYONE to submit scores
+                io.emit('update-turn', { activePlayer: "GAME OVER", isEnding: true });
             } else {
                 io.emit('update-turn', { activePlayer: players[turnIndex].name, isEnding: roundEnding });
             }

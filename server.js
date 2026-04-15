@@ -40,7 +40,8 @@ io.on('connection', (socket) => {
 
     socket.on('request-cards', (name) => {
         const p = players.find(player => player.name === name);
-        if (p && p.hand.length > 0) io.emit('receive-hand-' + p.name, p.hand);
+        // ONLY SEND IF HAND EXISTS AND IS THE CORRECT SIZE
+        if (p) io.emit('receive-hand-' + p.name, p.hand);
     });
 
     socket.on('start-game-rotation', () => { initGame(); });
@@ -80,18 +81,27 @@ function initGame() {
         for (let s of suits) { for (let v of values) deck.push(v + s); }
     }
     deck.sort(() => Math.random() - 0.5);
+    
+    // Exact Math: Round + 2
     let handSize = roundCount + 2;
+
     players.forEach(p => {
-        p.hand = [];
-        for (let i = 0; i < handSize; i++) { if (deck.length > 0) p.hand.push(deck.pop()); }
+        p.hand = []; // FORCED RESET
+        for (let i = 0; i < handSize; i++) {
+            if (deck.length > 0) p.hand.push(deck.pop());
+        }
     });
+    
+    // SHUFFLE ANIMATION TRIGGER
     io.emit('shuffle-transition');
+    
+    // 3 Second Delay for Shuffling
     setTimeout(() => {
         currentDiscard = deck.pop();
         io.emit('sync-round', roundCount);
         io.emit('update-discard', currentDiscard);
         io.emit('game-transition');
-        io.emit('trigger-card-request');
+        io.emit('trigger-card-request'); 
         activePlayerIndex = 0;
         io.emit('update-turn', { activePlayer: players[0].name, isEnding: false });
     }, 3000);

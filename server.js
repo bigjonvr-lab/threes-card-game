@@ -9,7 +9,7 @@ const fs = require('fs');
 app.get('/', (req, res) => {
     const locations = [path.join(__dirname, 'public', 'index.html'), path.join(__dirname, 'index.html')];
     for (let loc of locations) { if (fs.existsSync(loc)) return res.sendFile(loc); }
-    res.status(404).send("File not found.");
+    res.status(404).send("Big Jon Games Error: index.html not found.");
 });
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(__dirname));
@@ -67,6 +67,13 @@ io.on('connection', (socket) => {
         const p = players.find(p => p.name === data.name);
         if (p) { p.score += data.points; io.emit('update-lobby', players); }
     });
+
+    socket.on('next-round-setup', () => {
+        roundCount++;
+        if (roundCount > 13) roundCount = 3;
+        isEnding = false;
+        playerWhoWentOut = "";
+    });
 });
 
 function initGame() {
@@ -76,10 +83,15 @@ function initGame() {
         for (let s of suits) { for (let v of values) deck.push(v + s); }
     }
     deck.sort(() => Math.random() - 0.5);
+    
+    // Hand size math: Round + 2
+    let handSize = roundCount + 2;
+
     players.forEach(p => {
         p.hand = [];
-        for (let i = 0; i < roundCount; i++) p.hand.push(deck.pop());
+        for (let i = 0; i < handSize; i++) p.hand.push(deck.pop());
     });
+    
     io.emit('shuffle-transition');
     setTimeout(() => {
         currentDiscard = deck.pop();
@@ -102,4 +114,3 @@ function nextTurn() {
 }
 
 http.listen(3000, () => { console.log('Server running on 3000'); });
-

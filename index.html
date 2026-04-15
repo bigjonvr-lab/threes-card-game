@@ -9,23 +9,25 @@
         :root { --scarlet: #BB0000; --grey: #666666; --gold: #f1c40f; }
         body { font-family: 'Graduate', serif; background: #e0e0e0; margin: 0; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
         #splash-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--scarlet); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; color: white; text-align: center; }
-        #shuffle-view { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #e0e0e0; z-index: 900; display: none; align-items: center; justify-content: center; flex-direction: column; }
+        
+        /* Shuffling View Styling */
+        #shuffle-view { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #222; z-index: 950; display: none; align-items: center; justify-content: center; flex-direction: column; color: var(--gold); }
+        .deck-anim { width: 60px; height: 90px; border: 2px solid white; border-radius: 5px; background: var(--scarlet); position: relative; animation: shuffle 0.5s infinite; }
+        @keyframes shuffle { 0% { transform: translateX(0); } 50% { transform: translateX(20px) rotate(5deg); } 100% { transform: translateX(0); } }
+
         .view-section { display: none; flex: 1; flex-direction: column; padding: 10px; overflow-y: auto; }
         .active-view { display: flex; }
         header { background: var(--scarlet); color: white; padding: 10px; text-align: center; border-bottom: 4px solid var(--grey); position: relative; }
         footer { background: #333; color: white; padding: 10px; border-top: 4px solid var(--scarlet); height: 160px; overflow-y: auto; }
-        .discard-pile { background: white; border: 4px solid var(--grey); border-radius: 10px; width: 70px; height: 100px; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin-bottom: 10px; transition: color 0.1s; }
+        .discard-pile { background: white; border: 4px solid var(--grey); border-radius: 10px; width: 70px; height: 100px; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin-bottom: 10px; }
         .hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; margin-top: 15px; min-height: 120px; padding: 10px; }
-        .card { font-family: sans-serif; background: white; padding: 12px 6px; border-radius: 6px; font-weight: bold; min-width: 45px; text-align: center; border: 1px solid #999; cursor: grab; user-select: none; transition: transform 0.1s, color 0.1s; }
-        .card:active { cursor: grabbing; transform: scale(1.1); }
+        .card { font-family: sans-serif; background: white; padding: 12px 6px; border-radius: 6px; font-weight: bold; min-width: 45px; text-align: center; border: 1px solid #999; cursor: grab; user-select: none; }
         .card.wild-glow { border: 3px solid var(--gold); box-shadow: 0 0 10px var(--gold); background: #fffde7; }
-        /* is-point now overrides the standard suit color logic */
         .card.is-point { background: var(--scarlet) !important; color: white !important; border: 2px solid var(--gold); }
-        .card.dragging { opacity: 0.5; }
+        .card.dragging { opacity: 0.3; transform: scale(0.9); }
         button, select { font-family: 'Graduate', serif; padding: 12px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; }
         .btn-scarlet { background: var(--scarlet); color: white; }
         .btn-gray { background: var(--grey); color: white; }
-        .crown { color: var(--gold); margin-right: 5px; }
         #game-alert { position: fixed; top: 20%; left: 50%; transform: translateX(-50%); background: black; color: var(--gold); padding: 20px; border: 3px solid var(--scarlet); display: none; z-index: 3000; border-radius: 10px; text-align: center; }
     </style>
 </head>
@@ -39,7 +41,10 @@
         <button class="btn-gray" onclick="login()">ENTER GAME</button>
     </div>
 
-    <div id="shuffle-view"><h2>SHUFFLING...</h2></div>
+    <div id="shuffle-view">
+        <div class="deck-anim"></div>
+        <h2 style="margin-top: 20px;">SHUFFLING DECKS...</h2>
+    </div>
 
     <header>
         <span style="font-size: 1.2rem;">THREES</span>
@@ -49,7 +54,7 @@
 
     <div id="lobby-view" class="view-section active-view">
         <div id="lobby-list" style="background:white; border-radius:10px; padding:15px; margin-bottom:15px; color:black;"></div>
-        <label style="color: black;">Number of Decks:</label>
+        <label style="color: black;">Decks:</label>
         <select id="deck-select" onchange="socket.emit('set-decks', this.value)" style="margin-bottom:15px;">
             <option value="1">1 Deck</option><option value="2">2 Decks</option><option value="3">3 Decks</option>
         </select>
@@ -74,7 +79,7 @@
 
     <footer>
         <div id="game-log" style="font-size: 0.7rem; color: #ccc; margin-bottom: 5px; border-bottom: 1px solid #555;"></div>
-        <table style="width:100%; border-collapse: collapse;"><tbody id="score-body"></tbody></table>
+        <table style="width:100%;"><tbody id="score-body"></tbody></table>
     </footer>
 
     <script src="/socket.io/socket.io.js"></script>
@@ -87,8 +92,12 @@
             myName = prompt("Enter name:") || "Player"; 
             document.getElementById('splash-screen').style.display = 'none'; 
             socket.emit('join-game', myName); 
+            
             socket.on('receive-hand-' + myName, (hand) => {
-                myHand = hand; hasDrawn = false; selectedAsPoints = []; renderHand();
+                myHand = hand; 
+                hasDrawn = false; 
+                selectedAsPoints = []; 
+                renderHand();
             });
         }
 
@@ -111,10 +120,13 @@
             if(count == 11) currentWild = "J"; if(count == 12) currentWild = "Q"; if(count == 13) currentWild = "K";
             document.getElementById('wild-display').innerText = "WILD: " + currentWild + "s";
             roundOver = false;
-            document.getElementById('next-rd-btn').style.display = 'none';
         });
 
-        socket.on('shuffle-transition', () => { document.getElementById('shuffle-view').style.display = 'flex'; });
+        socket.on('shuffle-transition', () => { 
+            document.getElementById('shuffle-view').style.display = 'flex'; 
+            document.getElementById('game-view').classList.remove('active-view');
+        });
+
         socket.on('game-transition', () => { 
             document.getElementById('shuffle-view').style.display = 'none'; 
             document.getElementById('lobby-view').classList.remove('active-view');
@@ -133,12 +145,7 @@
             currentDiscard = c; 
             const dc = document.getElementById('last-card');
             dc.innerText = c; 
-            // FIXED: Color logic for the discard pile
-            if (c.includes('♥') || c.includes('♦')) {
-                dc.style.color = 'var(--scarlet)';
-            } else {
-                dc.style.color = 'black';
-            }
+            dc.style.color = (c.includes('♥') || c.includes('♦')) ? 'var(--scarlet)' : 'black'; 
         });
 
         socket.on('going-out-alert', (name) => {
@@ -164,13 +171,11 @@
             container.innerHTML = '';
             myHand.forEach((card, i) => {
                 const div = document.createElement('div');
-                // The dragging and point status are CSS classes
                 div.className = 'card' + (card.startsWith(currentWild) ? ' wild-glow' : '') + (selectedAsPoints.includes(i) ? ' is-point' : '');
                 div.innerText = card;
                 div.draggable = true;
-
-                // FIXED: Standard color logic for Hearts and Diamonds
-                // But only if the card isn't currently selected as a point (is-point overrides this)
+                
+                // Color Logic
                 if (!selectedAsPoints.includes(i) && (card.includes('♥') || card.includes('♦'))) {
                     div.style.color = 'var(--scarlet)';
                 } else if (!selectedAsPoints.includes(i)) {
@@ -193,7 +198,6 @@
                         hasDrawn = false; renderHand();
                         socket.emit('play-card', {player: myName, card: c});
                     } else if (roundOver) {
-                        // Scoring selection
                         if (selectedAsPoints.includes(i)) selectedAsPoints = selectedAsPoints.filter(idx => idx !== i);
                         else selectedAsPoints.push(i);
                         calculateScore(); renderHand();
@@ -238,6 +242,8 @@
         function dealNext() {
             socket.emit('next-round-setup');
             socket.emit('start-game-rotation');
+            document.getElementById('next-rd-btn').style.display = 'none';
+            document.getElementById('score-preview').innerText = "";
         }
     </script>
 </body>

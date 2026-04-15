@@ -6,23 +6,149 @@
     <title>Threes - Varsity Edition</title>
     <link href="https://fonts.googleapis.com/css2?family=Graduate&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Graduate', serif; background: #e0e0e0; margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        #splash-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #BB0000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; color: white; text-align: center; }
-        #shuffle-view { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #e0e0e0; z-index: 900; display: none; align-items: center; justify-content: center; flex-direction: column; }
-        .view-section { display: none; flex: 1; flex-direction: column; padding: 15px; }
+        /* MOBILE-FIRST RESPONSIVE LAYOUT */
+        body { 
+            font-family: 'Graduate', serif; 
+            background: #e0e0e0; 
+            margin: 0; 
+            height: 100dvh; 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+        }
+        
+        /* STATIC SPLASH SCREEN */
+        #splash-screen { 
+            position: fixed; 
+            top: 0; left: 0; 
+            width: 100%; height: 100%; 
+            background: #BB0000; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            z-index: 2000; 
+            color: white; 
+            text-align: center; 
+        }
+
+        #shuffle-view { 
+            position: fixed; 
+            top: 0; left: 0; 
+            width: 100%; height: 100%; 
+            background: #e0e0e0; 
+            z-index: 900; 
+            display: none; 
+            align-items: center; 
+            justify-content: center; 
+            flex-direction: column; 
+        }
+        
+        .view-section { 
+            display: none; 
+            flex: 1; 
+            flex-direction: column; 
+            padding: 10px; 
+            overflow-y: auto; 
+        }
         .active-view { display: flex; }
-        header { background: #BB0000; color: white; padding: 10px; text-align: center; border-bottom: 4px solid #666666; position: relative; }
-        footer { background: #333; color: white; padding: 10px; border-top: 4px solid #BB0000; min-height: 100px; overflow-y: auto; }
-        .discard-pile { background: white; border: 4px solid #666666; border-radius: 10px; width: 80px; height: 110px; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; margin-bottom: 15px; }
-        .hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 20px; padding-bottom: 20px; }
-        .card { font-family: sans-serif; background: white; padding: 12px 6px; border-radius: 6px; font-weight: bold; min-width: 45px; text-align: center; border: 1px solid #999; cursor: pointer; user-select: none; }
-        .card.selected { background: #BB0000; color: white !important; transform: translateY(-8px); border: 2px solid gold; }
-        button { font-family: 'Graduate', serif; padding: 14px; border-radius: 6px; border: none; font-weight: bold; text-transform: uppercase; cursor: pointer; }
+
+        header { 
+            background: #BB0000; 
+            color: white; 
+            padding: 10px; 
+            text-align: center; 
+            border-bottom: 4px solid #666666; 
+            flex-shrink: 0; 
+        }
+        
+        footer { 
+            background: #333; 
+            color: white; 
+            padding: 10px; 
+            border-top: 4px solid #BB0000; 
+            height: 130px; 
+            overflow-y: auto; 
+            flex-shrink: 0;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .discard-pile { 
+            background: white; 
+            border: 4px solid #666666; 
+            border-radius: 10px; 
+            width: 70px; height: 100px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 2rem; 
+            margin-bottom: 10px; 
+        }
+
+        .hand { 
+            display: flex; 
+            flex-wrap: wrap; 
+            justify-content: center; 
+            gap: 8px; 
+            margin-top: 15px; 
+            padding-bottom: 30px; 
+        }
+
+        .card { 
+            font-family: sans-serif; 
+            background: white; 
+            padding: 10px 5px; 
+            border-radius: 6px; 
+            font-weight: bold; 
+            min-width: 42px; 
+            text-align: center; 
+            border: 1px solid #999; 
+            cursor: pointer; 
+            user-select: none; 
+            font-size: 1rem; 
+        }
+
+        .card.selected { 
+            background: #BB0000; 
+            color: white !important; 
+            transform: translateY(-8px); 
+            border: 2px solid #f1c40f; 
+        }
+        
+        button { 
+            font-family: 'Graduate', serif; 
+            padding: 12px; 
+            border-radius: 6px; 
+            border: none; 
+            font-weight: bold; 
+            text-transform: uppercase; 
+            cursor: pointer; 
+            font-size: 0.85rem; 
+        }
+
         .btn-scarlet { background: #BB0000; color: white; }
         .btn-gray { background: #666666; color: white; }
         button:disabled { opacity: 0.3; pointer-events: none; }
+        
         #wild-display { font-size: 1.1rem; color: #f1c40f; margin-top: 5px; }
-        .scoreboard-title { font-size: 0.7rem; color: #aaa; text-transform: uppercase; margin-bottom: 5px; }
+        .scoreboard-title { 
+            font-size: 0.7rem; 
+            color: #aaa; 
+            text-transform: uppercase; 
+            margin-bottom: 5px; 
+            position: sticky; 
+            top: 0; 
+            background: #333; 
+            padding: 5px 0;
+        }
+
+        #score-preview { 
+            color: #BB0000; 
+            font-weight: bold; 
+            margin: 5px 0; 
+            height: 20px; 
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 <body>
@@ -33,37 +159,39 @@
         <button class="btn-gray" onclick="login()">ENTER GAME</button>
     </div>
 
-    <div id="shuffle-view"><h2>DEALING...</h2></div>
+    <div id="shuffle-view"><h2>DEALING HANDS...</h2></div>
 
     <header>
         <span id="round-info">VARSITY THREES</span>
         <div id="wild-display">WILD: 3s</div>
-        <div id="turn-msg">WAITING...</div>
+        <div id="turn-msg">WAITING FOR PLAYERS...</div>
     </header>
 
     <div id="lobby-view" class="view-section active-view">
         <div id="lobby-list" style="background:white; border-radius:10px; padding:15px; margin-bottom:20px; color:black;"></div>
         <button class="btn-scarlet" onclick="readyUp()">READY UP</button><br>
-        <button class="btn-gray" id="start-btn" onclick="triggerStart()">START GAME</button>
+        <button class="btn-gray" id="start-btn" onclick="triggerStart()">START NEW GAME</button>
     </div>
 
     <div id="game-view" class="view-section">
         <div style="display:flex; flex-direction:column; align-items:center;">
             <div class="discard-pile" id="last-card">--</div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; width:100%;">
+            
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; width:100%; max-width: 400px;">
                 <button id="draw-btn" class="btn-scarlet" onclick="drawCard()">DRAW</button>
                 <button id="pickup-btn" class="btn-gray" onclick="takeDiscard()">TAKE</button>
                 <button id="out-btn" class="btn-scarlet" style="grid-column: span 2;" onclick="triggerOut()">I'M GOING OUT</button>
                 <button id="end-btn" class="btn-gray" style="grid-column: span 2; display:none; border: 2px solid gold;" onclick="submitFinalScore()">SUBMIT POINTS</button>
                 <button id="deal-next-btn" class="btn-scarlet" style="grid-column: span 2; display:none; margin-top:10px;" onclick="dealNextRound()">DEAL NEXT ROUND</button>
             </div>
+
+            <p id="score-preview"></p>
             <div class="hand" id="my-hand"></div>
-            <p id="score-preview" style="color: #BB0000; font-weight:bold; margin-top:0;"></p>
         </div>
     </div>
 
     <footer>
-        <div class="scoreboard-title">Season Scoreboard</div>
+        <div class="scoreboard-title">Season Totals</div>
         <table style="width:100%; border-collapse: collapse;"><tbody id="score-body"></tbody></table>
     </footer>
 
@@ -72,142 +200,10 @@
         const socket = io();
         let myName = "", myHand = [], currentDiscard = "---", isMyTurn = false, hasDrawn = false, selectedForScoring = [];
 
-        function login() { myName = prompt("Name?") || "Player"; document.getElementById('splash-screen').style.display='none'; socket.emit('join-game', myName); }
-        function readyUp() { socket.emit('player-ready'); }
-        function triggerStart() { socket.emit('start-game-rotation'); }
-        function dealNextRound() { socket.emit('next-round-setup'); socket.emit('start-game-rotation'); }
-
-        socket.on('update-lobby', (players) => {
-            const list = document.getElementById('lobby-list');
-            const scores = document.getElementById('score-body');
-            list.innerHTML = ''; scores.innerHTML = '';
-            players.forEach(p => {
-                list.innerHTML += `<div style="display:flex; justify-content:space-between; padding:5px; border-bottom:1px solid #eee;"><span>${p.name}</span><span>${p.ready?'READY':'...'}</span></div>`;
-                scores.innerHTML += `<tr style="border-bottom: 1px solid #444;"><td>${p.name}</td><td style="text-align:right; font-weight:bold;">${p.score}</td></tr>`;
-            });
-        });
-
-        socket.on('sync-round', (count) => {
-            let wild = count;
-            if(count === 11) wild = "J (11)";
-            if(count === 12) wild = "Q (12)";
-            if(count === 13) wild = "K (13)";
-            document.getElementById('wild-display').innerText = "WILD: " + wild + "s";
-            document.getElementById('deal-next-btn').style.display = 'none';
-            document.getElementById('score-preview').innerText = "";
-        });
-
-        socket.on('shuffle-transition', () => { document.getElementById('shuffle-view').style.display = 'flex'; });
-        socket.on('game-transition', () => { 
-            document.getElementById('shuffle-view').style.display = 'none'; 
-            document.getElementById('lobby-view').classList.remove('active-view');
-            document.getElementById('game-view').classList.add('active-view');
-            document.getElementById('end-btn').style.display = 'none';
-        });
-
-        socket.on('receive-hand', (hand) => { myHand = hand; hasDrawn = false; selectedForScoring = []; renderHand(); });
-
-        socket.on('update-turn', (data) => {
-            isMyTurn = (data.activePlayer === myName);
-            document.getElementById('turn-msg').innerText = isMyTurn ? "YOUR TURN!" : data.activePlayer.toUpperCase() + "'S TURN";
-            document.body.style.boxShadow = data.isEnding ? "inset 0 0 50px rgba(187,0,0,0.3)" : "none";
-            
-            document.getElementById('draw-btn').disabled = !isMyTurn;
-            document.getElementById('pickup-btn').disabled = !isMyTurn || currentDiscard === "---";
-            document.getElementById('out-btn').disabled = !isMyTurn || data.isEnding;
-        });
-
-        socket.on('update-discard', (c) => { 
-            currentDiscard = c; 
-            const dc = document.getElementById('last-card');
-            dc.innerText = c; 
-            dc.style.color = (c.includes('♥') || c.includes('♦')) ? '#BB0000' : 'black'; 
-        });
-
-        socket.on('force-score-view', () => {
-            document.getElementById('end-btn').style.display = 'block';
-            document.getElementById('turn-msg').innerText = "ROUND OVER - COUNT POINTS";
-            isMyTurn = false; // Freeze gameplay
-            document.getElementById('draw-btn').disabled = true;
-            document.getElementById('pickup-btn').disabled = true;
-            document.getElementById('out-btn').disabled = true;
-        });
-
-        socket.on('show-next-deal-btn', () => { document.getElementById('deal-next-btn').style.display = 'block'; });
-
-        function drawCard() {
-            if(!isMyTurn || hasDrawn) return;
-            const v = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
-            const s = ['♥', '♦', '♣', '♠'];
-            myHand.push(v[Math.floor(Math.random()*13)] + s[Math.floor(Math.random()*4)]);
-            hasDrawn = true; renderHand();
+        function login() { 
+            myName = prompt("Enter your name:") || "Player " + Math.floor(Math.random()*100); 
+            document.getElementById('splash-screen').style.display='none'; 
+            socket.emit('join-game', myName); 
         }
 
-        function takeDiscard() {
-            if(!isMyTurn || hasDrawn || currentDiscard === "---") return;
-            myHand.push(currentDiscard); hasDrawn = true;
-            socket.emit('play-card', {player: "System", card: "---"}); renderHand();
-        }
-
-        function triggerOut() {
-            if(isMyTurn && !hasDrawn) {
-                if(confirm("Going out? Round will end after everyone else takes one more turn.")) {
-                    socket.emit('trigger-out', myName);
-                }
-            }
-        }
-
-        function renderHand() {
-            const container = document.getElementById('my-hand');
-            container.innerHTML = '';
-            myHand.forEach((card, i) => {
-                const div = document.createElement('div');
-                div.className = 'card';
-                if(selectedForScoring.includes(i)) div.classList.add('selected');
-                div.innerText = card;
-                if(!selectedForScoring.includes(i) && (card.includes('♥') || card.includes('♦'))) div.style.color = '#BB0000';
-                
-                div.onclick = () => {
-                    // Normal play: Discard to end turn
-                    if(isMyTurn && hasDrawn && document.getElementById('end-btn').style.display === 'none') {
-                        const c = myHand[i]; myHand.splice(i, 1);
-                        hasDrawn = false; renderHand();
-                        socket.emit('play-card', {player: myName, card: c});
-                    } 
-                    // Scoring phase: Select cards to count
-                    else if (document.getElementById('end-btn').style.display === 'block') {
-                        if(selectedForScoring.includes(i)) selectedForScoring = selectedForScoring.filter(item => item !== i);
-                        else selectedForScoring.push(i);
-                        calculatePreview(); renderHand();
-                    }
-                };
-                container.appendChild(div);
-            });
-        }
-
-        function calculatePreview() {
-            let pts = 0;
-            selectedForScoring.forEach(idx => {
-                let val = myHand[idx].replace(/[♥♦♣♠]/, '');
-                if (val === 'A') pts += 1;
-                else if (['J','Q','K'].includes(val)) pts += 10;
-                else pts += parseInt(val) || 0;
-            });
-            document.getElementById('score-preview').innerText = "Points to add: " + pts;
-        }
-
-        function submitFinalScore() {
-            let pts = 0;
-            selectedForScoring.forEach(idx => {
-                let val = myHand[idx].replace(/[♥♦♣♠]/, '');
-                if (val === 'A') pts += 1;
-                else if (['J','Q','K'].includes(val)) pts += 10;
-                else pts += parseInt(val) || 0;
-            });
-            socket.emit('submit-score', {name: myName, points: pts});
-            document.getElementById('end-btn').style.display = 'none';
-            document.getElementById('score-preview').innerText = "Finalized!";
-        }
-    </script>
-</body>
-</html>
+        function readyUp()

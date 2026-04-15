@@ -92,7 +92,10 @@
         </div>
     </div>
 
-    <footer><table style="width:100%;"><tbody id="score-body"></tbody></table></footer>
+    <footer>
+        <div id="game-log" style="font-size: 0.7rem; color: #ccc; margin-bottom: 5px; border-bottom: 1px solid #555;"></div>
+        <table style="width:100%;"><tbody id="score-body"></tbody></table>
+    </footer>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
@@ -169,6 +172,13 @@
             renderHand(); 
         });
 
+        // RESTORED: Listeners for game log
+        socket.on('log-hand-reveal', (d) => { 
+            document.getElementById('game-log').innerHTML += `<div style="padding: 2px 0;">${d.name}: ${d.hand.join(', ')} (${d.points} pts)</div>`; 
+        });
+        socket.on('clear-game-logs', () => { 
+            document.getElementById('game-log').innerHTML = ""; 
+        });
         socket.on('game-reset-broadcast', () => { localStorage.clear(); location.reload(); });
 
         function checkForMatches() {
@@ -224,7 +234,15 @@
         function takeDiscard() { if(!isMyTurn || hasDrawn || currentDiscard==="---") return; myHand.push(currentDiscard); hasDrawn=true; socket.emit('play-card', {card:"---"}); renderHand(); }
         function toggleSortMode() { sortMode = !sortMode; firstSortIndex = null; document.getElementById('sort-btn').innerText = sortMode ? "DONE" : "SORT HAND"; renderHand(); }
         function calculateScore() { let pts=0; selectedAsPoints.forEach(idx => { let v=myHand[idx].replace(/[♥♦♣♠]/,''); pts+=(v==='A')?1:['J','Q','K'].includes(v)?10:parseInt(v)||0; }); document.getElementById('score-preview').innerText="Points: "+pts; return pts; }
-        function submitFinalScore() { const pts = calculateScore(); socket.emit('submit-score', {name:myName, points:pts}); document.getElementById('submit-btn').style.display='none'; }
+        
+        function submitFinalScore() { 
+            const pts = calculateScore(); 
+            // RESTORED: Emit the broadcast-hand event before submitting the score
+            socket.emit('broadcast-hand', {name:myName, hand:myHand, points:pts}); 
+            socket.emit('submit-score', {name:myName, points:pts}); 
+            document.getElementById('submit-btn').style.display='none'; 
+        }
+        
         function triggerOut() { socket.emit('trigger-out', myName); }
     </script>
 </body>

@@ -81,7 +81,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('next-round-setup', () => {
-        gameState.round = (gameState.round >= 13) ? 1 : gameState.round + 1;
+        gameState.round = (gameState.round >= 13) ? 3 : gameState.round + 1;
         gameState.isEnding = false;
         gameState.outPlayer = "";
         io.emit('clear-game-logs'); 

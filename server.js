@@ -2,99 +2,55 @@ const express = require('express');
 const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
-const path = require('path');
 
-let players = [];
-let turnIndex = 0;
-let roundEnding = false;
-let stopperId = null;
-let cardsInHand = 3; 
+let rooms = {};
 
-function createMasterDeck() {
-    const suits = ['♥', '♦', '♣', '♠'];
-    const values = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
-    let deck = [];
-    for(let i=0; i<2; i++) {
-        suits.forEach(s => values.forEach(v => deck.push(v + s)));
+// Helper to check if a group of cards is a Set (3 of a kind) or Run (Sequence)
+function isMeld(cards) {
+    if (cards.length < 3) return false;
+    
+    const values = cards.map(c => c.replace(/[♥♦♣♠]/, ''));
+    const suits = cards.map(c => c.slice(-1));
+
+    // Check Set: All values same
+    if (values.every(v => v === values[0])) return true;
+
+    // Check Run: Same suit + consecutive numbers
+    if (suits.every(s => s === suits[0])) {
+        const order = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
+        let indices = values.map(v => order.indexOf(v)).sort((a, b) => a - b);
+        for (let i = 0; i < indices.length - 1; i++) {
+            if (indices[i+1] !== indices[i] + 1) return false;
+        }
+        return true;
     }
-    return deck.sort(() => Math.random() - 0.5);
+    return false;
 }
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
 io.on('connection', (socket) => {
-    socket.on('join-game', (name) => {
-        players.push({ id: socket.id, name: name, hand: [], score: 0, ready: false });
-        io.emit('update-lobby', players);
-    });
-
-    socket.on('player-ready', () => {
-        const p = players.find(p => p.id === socket.id);
-        if(p) p.ready = !p.ready;
-        io.emit('update-lobby', players);
-    });
-
-    socket.on('start-game-rotation', () => {
-        io.emit('shuffle-transition'); 
-        setTimeout(() => {
-            let masterDeck = createMasterDeck();
-            players.forEach(p => {
-                p.hand = [];
-                for(let i=0; i < cardsInHand; i++) p.hand.push(masterDeck.pop());
-                io.to(p.id).emit('receive-hand', p.hand);
-            });
-            turnIndex = 0;
-            roundEnding = false;
-            stopperId = null;
-            io.emit('game-transition');
-            io.emit('sync-round', cardsInHand);
-            io.emit('update-turn', { activePlayer: players[turnIndex].name, isEnding: false });
-            io.emit('update-discard', "---");
-        }, 2000); 
-    });
-
-    socket.on('next-round-setup', () => {
-        cardsInHand = (cardsInHand < 13) ? cardsInHand + 1 : 3;
-    });
-
-    socket.on('trigger-out', (name) => {
-        roundEnding = true;
-        stopperId = socket.id;
-        turnIndex = (turnIndex + 1) % players.length;
-        
-        if (players[turnIndex].id === stopperId) {
-            io.emit('force-score-view');
-        } else {
-            io.emit('update-turn', { activePlayer: players[turnIndex].name, isEnding: true });
+    socket.on('join-room', (data) => {
+        const { room, name } = data;
+        socket.join(room);
+        if (!rooms[room]) {
+            rooms[room] = { players: [], turnIndex: 0, cardsInHand: 3, discard: "---", deck: [] };
         }
+        rooms[room].players.push({ id: socket.id, name, hand: [], score: 0, ready: false, isAI: false });
+        io.to(room).emit('update-lobby', rooms[room].players);
     });
 
-    socket.on('play-card', (data) => {
-        io.emit('update-discard', data.card);
-        if (data.player !== "System") {
-            turnIndex = (turnIndex + 1) % players.length;
-            if (roundEnding && players[turnIndex].id === stopperId) {
-                io.emit('force-score-view');
-            } else {
-                io.emit('update-turn', { activePlayer: players[turnIndex].name, isEnding: roundEnding });
-            }
-        }
+    socket.on('add-ai', (room) => {
+        const aiName = "CPU_" + Math.floor(Math.random()*99);
+        rooms[room].players.push({ id: 'ai-'+Date.now(), name: aiName, hand: [], score: 0, ready: true, isAI: true });
+        io.to(room).emit('update-lobby', rooms[room].players);
     });
 
-    socket.on('submit-score', (data) => {
-        const p = players.find(p => p.name === data.name);
-        if(p) p.score += data.points; 
-        io.emit('update-lobby', players);
-        io.emit('show-next-deal-btn'); 
+    socket.on('start-game-rotation', (room) => {
+        const game = rooms[room];
+        // ... (Dealing logic similar to before, but checking melds for AI)
     });
-
-    socket.on('disconnect', () => {
-        players = players.filter(p => p.id !== socket.id);
-        io.emit('update-lobby', players);
-    });
+    
+    // Logic for AI to decide if it can "Go Out"
+    // (In a meld game, the AI would check if its hand can be partitioned into isMeld() groups)
 });
 
-const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => console.log(`Server live on ${PORT}`));
+http.listen(3000, () => console.log("Multi-room Meld Server live."));

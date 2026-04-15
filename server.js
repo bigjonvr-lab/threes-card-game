@@ -1,100 +1,183 @@
 const express = require('express');
 const app = express();
-const http = require('http').createServer(app);
+const http = require('http').Server(app);
 const io = require('socket.io')(http);
-const path = require('path');
 
 let players = [];
-let turnIndex = 0;
-let roundEnding = false;
-let stopperId = null;
-let cardsInHand = 3; 
+let deck = [];
+let currentDiscard = "---";
+let activePlayerIndex = 0;
+let roundCount = 3; // Starts at 3s
+let isEnding = false;
+let playersFinishedScoring = 0;
+let deckCount = 1;
 
-function createMasterDeck() {
-    const suits = ['♥', '♦', '♣', '♠'];
-    const values = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
-    let deck = [];
-    for(let i=0; i<2; i++) {
-        suits.forEach(s => values.forEach(v => deck.push(v + s)));
-    }
-    return deck.sort(() => Math.random() - 0.5);
-}
-
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
+app.use(express.static('public'));
 
 io.on('connection', (socket) => {
+    
     socket.on('join-game', (name) => {
-        players.push({ id: socket.id, name: name, hand: [], score: 0, ready: false });
+        socket.playerName = name;
+        if (!players.find(p => p.name === name)) {
+            players.push({ name, score: 0, ready: false, hand: [], isBot: false });
+        }
         io.emit('update-lobby', players);
     });
 
+    socket.on('add-bot', () => {
+        const botName = `Bot_${players.filter(p => p.isBot).length + 1}`;
+        players.push({ name: botName, score: 0, ready: true, hand: [], isBot: true });
+        io.emit('update-lobby', players);
+    });
+
+    socket.on('set-decks', (num) => {
+        deckCount = parseInt(num);
+    });
+
     socket.on('player-ready', () => {
-        const p = players.find(p => p.id === socket.id);
-        if(p) p.ready = !p.ready;
+        const p = players.find(p => p.name === socket.playerName);
+        if (p) p.ready = true;
         io.emit('update-lobby', players);
     });
 
     socket.on('start-game-rotation', () => {
-        io.emit('shuffle-transition'); 
-        setTimeout(() => {
-            let masterDeck = createMasterDeck();
-            players.forEach(p => {
-                p.hand = [];
-                for(let i=0; i < cardsInHand; i++) p.hand.push(masterDeck.pop());
-                io.to(p.id).emit('receive-hand', p.hand);
-            });
-            turnIndex = 0;
-            roundEnding = false;
-            stopperId = null;
-            io.emit('game-transition');
-            io.emit('sync-round', cardsInHand);
-            io.emit('update-turn', { activePlayer: players[turnIndex].name, isEnding: false });
-            io.emit('update-discard', "---");
-        }, 2000); 
-    });
-
-    socket.on('next-round-setup', () => {
-        cardsInHand = (cardsInHand < 13) ? cardsInHand + 1 : 3;
-    });
-
-    socket.on('trigger-out', (name) => {
-        roundEnding = true;
-        stopperId = socket.id;
-        turnIndex = (turnIndex + 1) % players.length;
-        
-        if (players[turnIndex].id === stopperId) {
-            io.emit('force-score-view');
-        } else {
-            io.emit('update-turn', { activePlayer: players[turnIndex].name, isEnding: true });
-        }
+        initGame();
     });
 
     socket.on('play-card', (data) => {
-        io.emit('update-discard', data.card);
-        if (data.player !== "System") {
-            turnIndex = (turnIndex + 1) % players.length;
-            if (roundEnding && players[turnIndex].id === stopperId) {
-                io.emit('force-score-view');
-            } else {
-                io.emit('update-turn', { activePlayer: players[turnIndex].name, isEnding: roundEnding });
-            }
-        }
+        currentDiscard = data.card;
+        io.emit('update-discard', currentDiscard);
+        nextTurn();
+    });
+
+    socket.on('trigger-out', (name) => {
+        isEnding = true;
+        io.emit('going-out-alert', name);
+        nextTurn();
+    });
+
+    socket.on('broadcast-hand', (data) => {
+        io.emit('log-hand-reveal', data);
     });
 
     socket.on('submit-score', (data) => {
         const p = players.find(p => p.name === data.name);
-        if(p) p.score += data.points; 
-        io.emit('update-lobby', players);
-        io.emit('show-next-deal-btn'); 
+        if (p) {
+            p.score += data.points;
+            playersFinishedScoring++;
+            io.emit('update-lobby', players);
+            
+            if (playersFinishedScoring >= players.length) {
+                io.emit('show-next-deal-btn');
+            }
+        }
     });
 
-    socket.on('disconnect', () => {
-        players = players.filter(p => p.id !== socket.id);
-        io.emit('update-lobby', players);
+    socket.on('next-round-setup', () => {
+        roundCount++;
+        if (roundCount > 13) roundCount = 3; // Loop back to 3s or end game
+        isEnding = false;
+        playersFinishedScoring = 0;
     });
 });
 
-const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => console.log(`Server live on ${PORT}`));
+function initGame() {
+    // Create Decks
+    deck = [];
+    const suits = ['♥', '♦', '♣', '♠'];
+    const values = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+    for (let d = 0; d < deckCount; d++) {
+        for (let s of suits) {
+            for (let v of values) deck.push(v + s);
+        }
+    }
+    // Shuffle
+    deck.sort(() => Math.random() - 0.5);
+
+    // Deal
+    players.forEach(p => {
+        p.hand = [];
+        for (let i = 0; i < roundCount; i++) p.hand.push(deck.pop());
+        io.emit('receive-hand-to-' + p.name, p.hand); // Private event per player
+    });
+
+    // We use a general emit for this demo, but usually you'd target sockets
+    io.emit('receive-hand', []); 
+    // Trigger the shuffle animation on front-end
+    io.emit('shuffle-transition');
+    
+    setTimeout(() => {
+        currentDiscard = deck.pop();
+        io.emit('sync-round', roundCount);
+        io.emit('update-discard', currentDiscard);
+        io.emit('game-transition');
+        startTurns();
+    }, 3000);
+}
+
+function startTurns() {
+    activePlayerIndex = 0;
+    sendTurnUpdate();
+}
+
+function sendTurnUpdate() {
+    const activePlayer = players[activePlayerIndex];
+    io.emit('update-turn', { activePlayer: activePlayer.name, isEnding });
+
+    if (activePlayer.isBot && !isEnding) {
+        runBotLogic(activePlayer);
+    } else if (activePlayer.isBot && isEnding) {
+        // Bot just takes its last turn and the round ends
+        setTimeout(() => { botFinishRound(activePlayer); }, 1000);
+    }
+}
+
+function nextTurn() {
+    activePlayerIndex = (activePlayerIndex + 1) % players.length;
+    
+    // Check if we've come back to the person who went out
+    if (isEnding && players[activePlayerIndex].name === "The person who went out") {
+        io.emit('force-score-view');
+        // Auto-score bots
+        players.filter(p => p.isBot).forEach(bot => {
+            let botScore = calculateBotScore(bot.hand);
+            io.emit('log-hand-reveal', {name: bot.name, hand: bot.hand, points: botScore});
+            bot.score += botScore;
+            playersFinishedScoring++;
+        });
+        io.emit('update-lobby', players);
+        return;
+    }
+    
+    sendTurnUpdate();
+}
+
+function runBotLogic(bot) {
+    setTimeout(() => {
+        // Bot draws
+        const drawn = deck.pop();
+        bot.hand.push(drawn);
+        
+        setTimeout(() => {
+            // Bot discards highest card that isn't wild
+            bot.hand.sort((a,b) => b.length - a.length); // Very basic sort
+            const discard = bot.hand.shift();
+            currentDiscard = discard;
+            io.emit('update-discard', currentDiscard);
+            nextTurn();
+        }, 1000);
+    }, 1000);
+}
+
+function calculateBotScore(hand) {
+    let pts = 0;
+    hand.forEach(card => {
+        let val = card.replace(/[♥♦♣♠]/, '');
+        if (val === 'A') pts += 1; 
+        else if (['J','Q','K'].includes(val)) pts += 10; 
+        else pts += parseInt(val) || 0;
+    });
+    return Math.floor(pts * 0.5); // Bots "cheat" slightly and match half their cards
+}
+
+http.listen(3000, () => { console.log('Big Jon Games Server Running on port 3000'); });

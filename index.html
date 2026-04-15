@@ -13,15 +13,17 @@
         .login-box { background: rgba(0,0,0,0.2); padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px; width: 85%; max-width: 350px; }
         input { padding: 12px; border-radius: 5px; border: none; font-family: 'Graduate'; }
 
-        /* SHUFFLE ANIMATION STYLES */
+        /* SHUFFLE ANIMATION */
         #shuffle-view { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #111; z-index: 950; display: none; align-items: center; justify-content: center; flex-direction: column; color: var(--gold); }
-        .shuffle-container { position: relative; width: 220px; height: 120px; display: flex; justify-content: space-between; align-items: center; }
-        .stack { width: 50px; height: 75px; background: white; border: 2px solid var(--grey); border-radius: 5px; position: relative; }
-        .moving-card { width: 50px; height: 75px; background: white; border: 2px solid var(--grey); border-radius: 5px; position: absolute; top: 0; }
-        .left-card { left: 0; animation: mergeLeft 0.5s infinite ease-in-out; }
-        .right-card { right: 0; animation: mergeRight 0.5s infinite ease-in-out; animation-delay: 0.25s; }
-        @keyframes mergeLeft { 0% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(85px); opacity: 0; } }
-        @keyframes mergeRight { 0% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(-85px); opacity: 0; } }
+        .shuffle-container { position: relative; width: 200px; height: 100px; }
+        .stack { width: 50px; height: 75px; background: white; border: 2px solid var(--grey); border-radius: 5px; position: absolute; }
+        .left-stack { left: 0; }
+        .right-stack { right: 0; }
+        .moving-card { width: 50px; height: 75px; background: white; border: 1px solid var(--grey); border-radius: 5px; position: absolute; }
+        .move-left { left: 0; animation: shuffleL 0.6s infinite ease-in-out; }
+        .move-right { right: 0; animation: shuffleR 0.6s infinite ease-in-out; animation-delay: 0.3s; }
+        @keyframes shuffleL { 0% { transform: translateX(0); } 50% { transform: translateX(75px) rotate(5deg); } 100% { transform: translateX(150px); opacity:0; } }
+        @keyframes shuffleR { 0% { transform: translateX(0); } 50% { transform: translateX(-75px) rotate(-5deg); } 100% { transform: translateX(-150px); opacity:0; } }
 
         .view-section { display: none; flex: 1; flex-direction: column; padding: 10px; overflow-y: auto; }
         .active-view { display: flex; }
@@ -29,41 +31,42 @@
         footer { background: #333; color: white; padding: 10px; border-top: 4px solid var(--scarlet); height: 160px; overflow-y: auto; }
         
         .discard-pile { background: white; border: 4px solid var(--grey); border-radius: 10px; width: 70px; height: 100px; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin-bottom: 10px; }
-        .hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 15px; padding-bottom: 20px; }
-        .card { font-family: sans-serif; background: white; padding: 12px 6px; border-radius: 6px; font-weight: bold; min-width: 45px; text-align: center; border: 1px solid #999; }
+        .hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 15px; }
+        .card { font-family: sans-serif; background: white; padding: 12px 6px; border-radius: 6px; font-weight: bold; min-width: 45px; text-align: center; border: 1px solid #999; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }
         .card.wild-glow { border: 3px solid var(--gold); background: #fffde7; }
         .card.is-point { background: var(--scarlet) !important; color: white !important; }
-        .card.sorting { border: 3px dashed var(--blue); transform: scale(1.1); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .card.sorting { border: 3px dashed var(--blue); transform: scale(1.1); }
 
-        button, select { font-family: 'Graduate', serif; padding: 12px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; }
+        button { font-family: 'Graduate', serif; padding: 12px; border-radius: 6px; border: none; font-weight: bold; }
         .btn-scarlet { background: var(--scarlet); color: white; }
         .btn-gray { background: var(--grey); color: white; }
         .btn-blue { background: var(--blue); color: white; }
-        
-        #game-alert { position: fixed; top: 20%; left: 50%; transform: translateX(-50%); background: black; color: var(--gold); padding: 20px; border: 3px solid var(--scarlet); display: none; z-index: 3000; border-radius: 10px; text-align: center; }
+        #game-alert { position: fixed; top: 20%; left: 50%; transform: translateX(-50%); background: black; color: var(--gold); padding: 20px; border: 3px solid var(--scarlet); display: none; z-index: 3000; border-radius: 10px; }
     </style>
 </head>
 <body>
     <div id="game-alert"></div>
     <div id="splash-screen">
-        <h1 style="margin-bottom:10px;">THREES</h1>
+        <h1>THREES</h1>
         <div class="login-box">
-            <div id="room-browser" style="background: rgba(255,255,255,0.1); border-radius: 5px; padding: 10px; margin-bottom: 10px; max-height: 150px; overflow-y: auto; text-align: left;">
-                <p style="font-size: 0.7rem; margin: 0 0 5px 0; opacity: 0.8;">ACTIVE ROOMS:</p>
+            <div id="room-browser" style="background: rgba(255,255,255,0.1); border-radius: 5px; padding: 10px; max-height: 120px; overflow-y: auto; text-align: left; font-size: 0.8rem;">
+                <p style="margin:0 0 5px 0; opacity:0.7;">ACTIVE ROOMS:</p>
                 <div id="room-list-container"></div>
             </div>
             <input type="text" id="room-input" placeholder="ROOM NAME">
             <input type="text" id="name-input" placeholder="YOUR NAME">
-            <button class="btn-gray" onclick="login()">JOIN / CREATE ROOM</button>
+            <button class="btn-gray" onclick="login()">JOIN GAME</button>
         </div>
     </div>
 
     <div id="shuffle-view">
         <div class="shuffle-container">
-            <div class="stack"><div class="moving-card left-card"></div></div>
-            <div class="stack"><div class="moving-card right-card"></div></div>
+            <div class="stack left-stack"></div>
+            <div class="stack right-stack"></div>
+            <div class="moving-card move-left"></div>
+            <div class="moving-card move-right"></div>
         </div>
-        <h2 style="margin-top:20px;">SHUFFLING...</h2>
+        <h2 style="margin-top:40px;">SHUFFLING...</h2>
     </div>
 
     <header>
@@ -74,13 +77,9 @@
 
     <div id="lobby-view" class="view-section active-view">
         <div id="lobby-list" style="background:white; border-radius:10px; padding:15px; margin-bottom:15px; color:black;"></div>
-        <label style="color: black;">Decks:</label>
-        <select id="deck-select" onchange="socket.emit('set-decks', this.value)" style="margin-bottom:15px;">
-            <option value="1">1 Deck</option><option value="2">2 Decks</option><option value="3">3 Decks</option>
-        </select>
         <button class="btn-scarlet" onclick="socket.emit('player-ready')">READY UP</button><br>
         <button class="btn-gray" onclick="socket.emit('start-game-rotation')">START GAME</button><br>
-        <button class="btn-gray" style="background:#444;" onclick="socket.emit('reset-whole-game')">HARD RESET ROOM</button>
+        <button class="btn-gray" style="background:#444;" onclick="socket.emit('reset-whole-game')">RESET ROOM</button>
     </div>
 
     <div id="game-view" class="view-section">
@@ -100,8 +99,8 @@
     </div>
 
     <footer>
-        <div id="game-log" style="font-size: 0.7rem; color: #ccc; margin-bottom: 5px; border-bottom: 1px solid #555;"></div>
-        <table style="width:100%; border-collapse: collapse;"><tbody id="score-body"></tbody></table>
+        <div id="game-log" style="font-size: 0.7rem; color: #ccc; margin-bottom: 5px;"></div>
+        <table style="width:100%;"><tbody id="score-body"></tbody></table>
     </footer>
 
     <script src="/socket.io/socket.io.js"></script>
@@ -114,11 +113,10 @@
 
         socket.on('room-list', (rooms) => {
             const container = document.getElementById('room-list-container');
-            if (rooms.length === 0) { container.innerHTML = '<p style="font-size:0.8rem;">No active games.</p>'; return; }
-            container.innerHTML = '';
+            container.innerHTML = rooms.length ? '' : 'No active games.';
             rooms.forEach(r => {
                 const div = document.createElement('div');
-                div.style = "display:flex; justify-content:space-between; padding:5px; border-bottom: 1px solid rgba(255,255,255,0.1); cursor:pointer; font-size:0.8rem;";
+                div.style = "display:flex; justify-content:space-between; padding:5px; border-bottom: 1px solid rgba(255,255,255,0.1); cursor:pointer;";
                 div.innerHTML = `<span>${r.id}</span><span>${r.count} Players ${r.started ? '🎮' : ''}</span>`;
                 div.onclick = () => { document.getElementById('room-input').value = r.id; };
                 container.appendChild(div);
@@ -154,12 +152,9 @@
         socket.on('update-lobby', (players) => {
             const list = document.getElementById('lobby-list'), scores = document.getElementById('score-body');
             list.innerHTML = ''; scores.innerHTML = '';
-            const valid = players.filter(p => p.score > 0).map(p => p.score);
-            const min = valid.length ? Math.min(...valid) : null;
             players.forEach(p => { list.innerHTML += `<div>${p.name} - ${p.ready?'READY':'...'}</div>`; });
             [...players].sort((a,b)=>a.score-b.score).forEach(p => {
-                const star = (min !== null && p.score === min) ? ' ⭐' : '';
-                scores.innerHTML += `<tr><td>${p.name}${star}</td><td style="text-align:right;">${p.score}</td></tr>`;
+                scores.innerHTML += `<tr><td>${p.name}</td><td style="text-align:right;">${p.score}</td></tr>`;
             });
         });
 
@@ -167,13 +162,12 @@
             currentWild = c; 
             let label = (c==1)?'A':(c==11)?'J':(c==12)?'Q':(c==13)?'K':c;
             document.getElementById('wild-display').innerText = "WILD: " + label + "s";
-            roundOver = false; 
-            document.getElementById('next-rd-btn').style.display = 'none';
+            roundOver = false; document.getElementById('next-rd-btn').style.display = 'none';
             document.getElementById('submit-btn').style.display = 'none';
-            document.getElementById('score-preview').innerText = "";
         });
 
-        socket.on('receive-hand-' + myName, (hand) => { myHand = hand; renderHand(); });
+        socket.on('receive-hand', (hand) => { myHand = hand; renderHand(); });
+        
         socket.on('update-discard', (c) => { 
             currentDiscard = c; 
             const dc = document.getElementById('last-card'); dc.innerText = c;
@@ -181,11 +175,12 @@
         });
 
         socket.on('shuffle-transition', () => { document.getElementById('shuffle-view').style.display = 'flex'; });
+        
         socket.on('game-transition', () => { 
             document.getElementById('shuffle-view').style.display = 'none';
             document.getElementById('lobby-view').classList.remove('active-view');
             document.getElementById('game-view').classList.add('active-view');
-            socket.emit('request-cards', myName);
+            socket.emit('request-cards');
         });
 
         socket.on('update-turn', (data) => {
@@ -201,10 +196,7 @@
         });
 
         socket.on('force-score-view', () => { roundOver = true; document.getElementById('submit-btn').style.display = 'block'; renderHand(); });
-        socket.on('log-hand-reveal', (d) => { document.getElementById('game-log').innerHTML += `<div>${d.name}: ${d.hand.join(', ')} (${d.points})</div>`; });
         socket.on('game-reset-broadcast', () => { localStorage.clear(); location.reload(); });
-        socket.on('clear-game-logs', () => { document.getElementById('game-log').innerHTML = ""; });
-        socket.on('trigger-card-request', () => { if (myName) socket.emit('request-cards', myName); });
 
         function renderHand() {
             const container = document.getElementById('my-hand'); container.innerHTML = '';
@@ -240,7 +232,7 @@
         function drawCard() { if(!isMyTurn || hasDrawn) return; const v=['A','2','3','4','5','6','7','8','9','10','J','Q','K'], s=['♥','♦','♣','♠']; myHand.push(v[Math.floor(Math.random()*13)]+s[Math.floor(Math.random()*4)]); hasDrawn=true; renderHand(); }
         function takeDiscard() { if(!isMyTurn || hasDrawn || currentDiscard==="---") return; myHand.push(currentDiscard); hasDrawn=true; socket.emit('play-card', {card:"---"}); renderHand(); }
         function calculateScore() { let pts=0; selectedAsPoints.forEach(idx => { let v=myHand[idx].replace(/[♥♦♣♠]/,''); pts+=(v==='A')?1:['J','Q','K'].includes(v)?10:parseInt(v)||0; }); document.getElementById('score-preview').innerText="Points: "+pts; return pts; }
-        function submitFinalScore() { const pts = calculateScore(); socket.emit('broadcast-hand', {name:myName, hand:myHand, points:pts}); socket.emit('submit-score', {name:myName, points:pts}); document.getElementById('submit-btn').style.display='none'; }
+        function submitFinalScore() { const pts = calculateScore(); socket.emit('submit-score', {name:myName, points:pts}); document.getElementById('submit-btn').style.display='none'; }
         function triggerOut() { socket.emit('trigger-out', myName); }
     </script>
 </body>

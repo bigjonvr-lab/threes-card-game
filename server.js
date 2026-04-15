@@ -7,7 +7,6 @@ const path = require('path');
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(__dirname));
 
-// Single game state
 let gameState = {
     players: [],
     deck: [],
@@ -27,7 +26,7 @@ io.on('connection', (socket) => {
         if (!p) {
             gameState.players.push({ name, score: 0, ready: false, hand: [], socketId: socket.id });
         } else {
-            p.socketId = socket.id; // Update ID on reconnect
+            p.socketId = socket.id;
         }
         io.emit('update-lobby', gameState.players);
         
@@ -62,11 +61,6 @@ io.on('connection', (socket) => {
         nextTurn();
     });
 
-    socket.on('request-cards', () => {
-        const p = gameState.players.find(pl => pl.name === socket.playerName);
-        if (p) socket.emit('receive-hand', p.hand);
-    });
-
     socket.on('trigger-out', (name) => {
         gameState.isEnding = true;
         gameState.outPlayer = name;
@@ -82,7 +76,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // RESTORED: Broadcast the hand and score to everyone
     socket.on('broadcast-hand', (data) => { 
         io.emit('log-hand-reveal', data); 
     });
@@ -91,7 +84,7 @@ io.on('connection', (socket) => {
         gameState.round = (gameState.round >= 13) ? 1 : gameState.round + 1;
         gameState.isEnding = false;
         gameState.outPlayer = "";
-        io.emit('clear-game-logs'); // RESTORED: Clear the log for the new round
+        io.emit('clear-game-logs'); 
         initGame();
     });
 

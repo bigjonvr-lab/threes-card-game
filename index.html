@@ -6,39 +6,27 @@
     <title>Threes - Varsity Edition</title>
     <link href="https://fonts.googleapis.com/css2?family=Graduate&display=swap" rel="stylesheet">
     <style>
-        /* ANIMATIONS */
         @keyframes shuffleCycle {
             0% { transform: translate(0, 0); opacity: 0; }
             50% { transform: translate(40px, -20px) rotate(10deg); opacity: 1; }
             100% { transform: translate(0, 0); opacity: 0; }
         }
-
         body { font-family: 'Graduate', serif; background: #e0e0e0; margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        
-        /* SCREENS */
         #splash-screen { position: fixed; top:0; left:0; width:100%; height:100%; background:#BB0000; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:1000; color:white; }
         #shuffle-view { position: fixed; top:0; left:0; width:100%; height:100%; background:#e0e0e0; display:none; flex-direction:column; align-items:center; justify-content:center; z-index:900; }
-        
         .view-section { display: none; flex: 1; flex-direction: column; padding: 15px; }
         .active-view { display: flex; }
-
         header { background: #BB0000; color: white; padding: 10px; text-align: center; border-bottom: 4px solid #666666; }
-        footer { background: #333; color: white; padding: 10px; border-top: 4px solid #BB0000; }
-
-        /* LOBBY STYLES */
+        footer { background: #333; color: white; padding: 10px; border-top: 4px solid #BB0000; min-height: 80px; }
         .lobby-box { background: white; border-radius: 10px; padding: 20px; width: 90%; max-width: 400px; margin: 20px auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         .player-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
         .status-ready { color: #2ecc71; font-weight: bold; }
-        .status-wait { color: #e74c3c; }
-
-        /* GAME STYLES */
-        .discard-pile { background: white; border: 4px solid #666666; border-radius: 10px; width: 80px; height: 110px; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; margin-bottom: 15px; }
+        .discard-pile { background: white; border: 4px solid #666666; border-radius: 10px; width: 80px; height: 110px; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; margin-bottom: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
         .hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 20px; }
-        .card { font-family: sans-serif; background: white; padding: 12px 6px; border-radius: 6px; font-weight: bold; min-width: 45px; text-align: center; border: 1px solid #999; }
-        
+        .card { font-family: sans-serif; background: white; padding: 12px 6px; border-radius: 6px; font-weight: bold; min-width: 45px; text-align: center; border: 1px solid #999; cursor: pointer; }
         .shuffle-card { width: 60px; height: 90px; background: #666; border: 2px solid #BB0000; border-radius: 5px; position: absolute; animation: shuffleCycle 0.8s infinite; }
-
         button { font-family: 'Graduate', serif; padding: 14px; border-radius: 6px; border: none; cursor: pointer; text-transform: uppercase; font-weight: bold; }
+        button:disabled { opacity: 0.3; cursor: not-allowed; }
         .btn-scarlet { background: #BB0000; color: white; }
         .btn-gray { background: #666666; color: white; }
     </style>
@@ -57,7 +45,7 @@
             <div class="shuffle-card" style="animation-delay: 0.2s;"></div>
             <div class="shuffle-card" style="animation-delay: 0.4s;"></div>
         </div>
-        <h2 style="margin-top: 40px;">SHUFFLING...</h2>
+        <h2 style="margin-top: 40px;">SHUFFLING DECK...</h2>
     </div>
 
     <header>
@@ -67,12 +55,12 @@
 
     <div id="lobby-view" class="view-section active-view">
         <div class="lobby-box">
-            <h3 style="text-align: center; margin-top: 0;">PLAYERS IN LOBBY</h3>
+            <h3 style="text-align: center; margin-top: 0;">PLAYERS</h3>
             <div id="lobby-list"></div>
         </div>
         <div style="display: flex; flex-direction: column; gap: 10px; align-items: center;">
-            <button class="btn-scarlet" style="width: 80%;" onclick="readyUp()">READY UP</button>
-            <button class="btn-gray" style="width: 80%;" onclick="triggerStart()">START GAME</button>
+            <button class="btn-scarlet" style="width: 220px;" onclick="readyUp()">READY UP</button>
+            <button class="btn-gray" style="width: 220px;" onclick="triggerStart()">START GAME</button>
         </div>
     </div>
 
@@ -89,7 +77,8 @@
     </div>
 
     <footer>
-        <table style="width:100%; font-size:0.8rem;">
+        <table style="width:100%; border-collapse: collapse;">
+            <thead><tr style="font-size: 0.6rem; color: #aaa;"><th>PLAYER</th><th style="text-align:right;">SCORE</th></tr></thead>
             <tbody id="score-body"></tbody>
         </table>
     </footer>
@@ -112,10 +101,9 @@
             const list = document.getElementById('lobby-list');
             const scores = document.getElementById('score-body');
             list.innerHTML = ''; scores.innerHTML = '';
-            
             players.forEach(p => {
-                list.innerHTML += `<div class="player-row"><span>${p.name}</span><span class="${p.ready?'status-ready':'status-wait'}">${p.ready?'READY':'WAITING'}</span></div>`;
-                scores.innerHTML += `<tr><td>${p.name}</td><td style="text-align:right;">${p.score}</td></tr>`;
+                list.innerHTML += `<div class="player-row"><span>${p.name}</span><span class="${p.ready?'status-ready':''}">${p.ready?'READY':'...'}</span></div>`;
+                scores.innerHTML += `<tr style="border-top:1px solid #444;"><td>${p.name}</td><td style="text-align:right;">${p.score}</td></tr>`;
             });
         });
 
@@ -137,7 +125,7 @@
 
         socket.on('update-turn', (data) => {
             isMyTurn = (data.activePlayer === myName);
-            document.getElementById('turn-msg').innerText = isMyTurn ? "YOUR TURN" : data.activePlayer + "'S TURN";
+            document.getElementById('turn-msg').innerText = isMyTurn ? "YOUR TURN" : data.activePlayer.toUpperCase() + "'S TURN";
             document.getElementById('draw-btn').disabled = !isMyTurn;
             document.getElementById('pickup-btn').disabled = !isMyTurn || currentDiscard === "---";
         });
@@ -149,19 +137,26 @@
             dc.style.color = (card.includes('♥') || card.includes('♦')) ? '#BB0000' : 'black';
         });
 
+        function getRandomCard() {
+            const values = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+            const suits = ['♥', '♦', '♣', '♠'];
+            return values[Math.floor(Math.random() * 13)] + suits[Math.floor(Math.random() * 4)];
+        }
+
         function drawCard() {
             if(!isMyTurn || hasDrawn) return;
-            // Temporary local draw for visual
-            myHand.push('?');
+            myHand.push(getRandomCard());
             hasDrawn = true;
             renderHand();
+            document.getElementById('draw-btn').disabled = true;
+            document.getElementById('pickup-btn').disabled = true;
         }
 
         function takeDiscard() {
-            if(!isMyTurn || hasDrawn) return;
+            if(!isMyTurn || hasDrawn || currentDiscard === "---") return;
             myHand.push(currentDiscard);
-            socket.emit('play-card', {player: "System", card: "---"});
             hasDrawn = true;
+            socket.emit('play-card', {player: "System", card: "---"});
             renderHand();
         }
 

@@ -17,7 +17,7 @@ let players = [];
 let deck = [];
 let currentDiscard = "---";
 let activePlayerIndex = 0;
-let roundCount = 3; // Start at 3 (3s are wild, 3 cards dealt)
+let roundCount = 3; 
 let isEnding = false;
 let playerWhoWentOut = "";
 let deckCount = 1;
@@ -77,7 +77,7 @@ io.on('connection', (socket) => {
 
     socket.on('next-round-setup', () => {
         roundCount++; 
-        if (roundCount > 13) roundCount = 1; // Loop back to Aces if you go past Kings
+        if (roundCount > 13) roundCount = 1; 
         isEnding = false;
         playerWhoWentOut = "";
         initGame(); 
@@ -92,9 +92,7 @@ function initGame() {
     }
     deck.sort(() => Math.random() - 0.5);
     
-    // THE FIX: Hand Size = Current Round/Wild Value
     let handSize = roundCount;
-    // Special check for Ace (Round 1)
     if (roundCount === 1) handSize = 1; 
 
     players.forEach(p => {

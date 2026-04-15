@@ -14,7 +14,6 @@ function createMasterDeck() {
     const suits = ['♥', '♦', '♣', '♠'];
     const values = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
     let deck = [];
-    // Using 2 decks for larger hands
     for(let i=0; i<2; i++) {
         suits.forEach(s => values.forEach(v => deck.push(v + s)));
     }
@@ -58,17 +57,13 @@ io.on('connection', (socket) => {
 
     socket.on('next-round-setup', () => {
         cardsInHand = (cardsInHand < 13) ? cardsInHand + 1 : 3;
-        io.emit('log-action', `Next round will have ${cardsInHand} cards.`);
     });
 
     socket.on('trigger-out', (name) => {
         roundEnding = true;
         stopperId = socket.id;
-        
-        // Immediate skip to next player - the 'Stopper' is done.
         turnIndex = (turnIndex + 1) % players.length;
         
-        // If there's only 1 player (testing), end immediately. Otherwise, one more turn for others.
         if (players[turnIndex].id === stopperId) {
             io.emit('force-score-view');
         } else {
@@ -80,7 +75,6 @@ io.on('connection', (socket) => {
         io.emit('update-discard', data.card);
         if (data.player !== "System") {
             turnIndex = (turnIndex + 1) % players.length;
-            
             if (roundEnding && players[turnIndex].id === stopperId) {
                 io.emit('force-score-view');
             } else {
@@ -91,7 +85,7 @@ io.on('connection', (socket) => {
 
     socket.on('submit-score', (data) => {
         const p = players.find(p => p.name === data.name);
-        if(p) p.score += data.points; // Add to existing total
+        if(p) p.score += data.points; 
         io.emit('update-lobby', players);
         io.emit('show-next-deal-btn'); 
     });

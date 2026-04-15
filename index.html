@@ -11,19 +11,22 @@
         
         #splash-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--scarlet); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; color: white; text-align: center; }
         
-        /* Shuffling View Styling - chaotic multi-card */
+        /* Shuffling into each other animation */
         #shuffle-view { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #111; z-index: 950; display: none; align-items: center; justify-content: center; flex-direction: column; color: var(--gold); overflow: hidden; }
-        .card-container { position: relative; width: 200px; height: 150px; }
-        .mini-card { width: 45px; height: 65px; background: white; border: 2px solid var(--grey); position: absolute; border-radius: 5px; box-shadow: 2px 2px 10px rgba(0,0,0,0.8); animation: cardFly 0.7s infinite ease-in-out; }
-        .mini-card:nth-child(1) { animation-delay: 0s; left: 5px; }
-        .mini-card:nth-child(2) { animation-delay: 0.15s; left: 35px; }
-        .mini-card:nth-child(3) { animation-delay: 0.3s; left: 65px; }
-        .mini-card:nth-child(4) { animation-delay: 0.45s; left: 95px; }
-        .mini-card:nth-child(5) { animation-delay: 0.6s; left: 125px; }
-        @keyframes cardFly { 
-            0% { transform: translate(-20px, 80px) rotate(-20deg); opacity: 0; }
-            50% { opacity: 1; }
-            100% { transform: translate(50px, -80px) rotate(40deg); opacity: 0; }
+        .shuffle-container { position: relative; width: 220px; height: 120px; display: flex; justify-content: space-between; align-items: center; }
+        .stack { width: 50px; height: 75px; background: white; border: 2px solid var(--grey); border-radius: 5px; position: relative; }
+        .moving-card { width: 50px; height: 75px; background: white; border: 2px solid var(--grey); border-radius: 5px; position: absolute; top: 0; box-shadow: 2px 2px 5px rgba(0,0,0,0.5); }
+        
+        .left-card { left: 0; animation: mergeLeft 0.5s infinite ease-in-out; }
+        .right-card { right: 0; animation: mergeRight 0.5s infinite ease-in-out; animation-delay: 0.25s; }
+
+        @keyframes mergeLeft {
+            0% { transform: translateX(0) rotate(-5deg); opacity: 1; }
+            100% { transform: translateX(85px) rotate(0deg); opacity: 0; }
+        }
+        @keyframes mergeRight {
+            0% { transform: translateX(0) rotate(5deg); opacity: 1; }
+            100% { transform: translateX(-85px) rotate(0deg); opacity: 0; }
         }
 
         .view-section { display: none; flex: 1; flex-direction: column; padding: 10px; overflow-y: auto; }
@@ -53,12 +56,15 @@
     </div>
 
     <div id="shuffle-view">
-        <div class="card-container">
-            <div class="mini-card"></div><div class="mini-card"></div>
-            <div class="mini-card"></div><div class="mini-card"></div>
-            <div class="mini-card"></div>
+        <div class="shuffle-container">
+            <div class="stack">
+                <div class="moving-card left-card"></div>
+            </div>
+            <div class="stack">
+                <div class="moving-card right-card"></div>
+            </div>
         </div>
-        <h2 style="margin-top: 20px; letter-spacing: 1px;">SHUFFLING DECKS...</h2>
+        <h2 style="margin-top: 20px; letter-spacing: 1px;">SHUFFLING...</h2>
     </div>
 
     <header>
@@ -85,7 +91,7 @@
                 <button id="draw-btn" class="btn-scarlet" onclick="drawCard()">DRAW</button>
                 <button id="pickup-btn" class="btn-gray" onclick="takeDiscard()">TAKE</button>
                 <button id="out-btn" class="btn-scarlet" style="grid-column: span 2;" onclick="triggerOut()">I'M GOING OUT</button>
-                <button id="submit-btn" class="btn-scarlet" style="grid-column: span 2; display:none;" onclick="submitFinalScore()">SUBMIT UNMATCHED</button>
+                <button id="submit-btn" class="btn-scarlet" style="grid-column: span 2; display:none;" onclick="submitFinalScore()">SUBMIT POINTS</button>
                 <button id="next-rd-btn" class="btn-gray" style="grid-column: span 2; display:none;" onclick="socket.emit('next-round-setup')">NEXT ROUND</button>
                 <button id="host-reset-btn" class="btn-gray" style="grid-column: span 2; background: #444; margin-top: 10px; display:none;" onclick="socket.emit('reset-whole-game')">FORCE HARD RESET</button>
             </div>
@@ -192,7 +198,6 @@
             myHand.forEach((card, i) => {
                 const div = document.createElement('div');
                 let valStr = card.replace(/[♥♦♣♠]/, '');
-                // Map J,Q,K,A back to numbers for the wild-glow logic
                 let checkVal = valStr;
                 if(valStr === 'A') checkVal = 1; if(valStr === 'J') checkVal = 11; if(valStr === 'Q') checkVal = 12; if(valStr === 'K') checkVal = 13;
 

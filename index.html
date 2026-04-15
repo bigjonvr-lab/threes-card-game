@@ -11,33 +11,34 @@
         #shuffle-view { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #e0e0e0; z-index: 900; display: none; align-items: center; justify-content: center; flex-direction: column; }
         .view-section { display: none; flex: 1; flex-direction: column; padding: 15px; }
         .active-view { display: flex; }
-        header { background: #BB0000; color: white; padding: 10px; text-align: center; border-bottom: 4px solid #666666; }
-        footer { background: #333; color: white; padding: 10px; border-top: 4px solid #BB0000; min-height: 80px; }
+        header { background: #BB0000; color: white; padding: 10px; text-align: center; border-bottom: 4px solid #666666; position: relative; }
+        footer { background: #333; color: white; padding: 10px; border-top: 4px solid #BB0000; min-height: 100px; overflow-y: auto; }
         .discard-pile { background: white; border: 4px solid #666666; border-radius: 10px; width: 80px; height: 110px; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; margin-bottom: 15px; }
-        .hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 20px; }
-        .card { font-family: sans-serif; background: white; padding: 12px 6px; border-radius: 6px; font-weight: bold; min-width: 45px; text-align: center; border: 1px solid #999; cursor: pointer; }
-        .card.selected { background: #BB0000; color: white !important; transform: translateY(-5px); }
+        .hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 20px; padding-bottom: 20px; }
+        .card { font-family: sans-serif; background: white; padding: 12px 6px; border-radius: 6px; font-weight: bold; min-width: 45px; text-align: center; border: 1px solid #999; cursor: pointer; user-select: none; }
+        .card.selected { background: #BB0000; color: white !important; transform: translateY(-8px); border: 2px solid gold; }
         button { font-family: 'Graduate', serif; padding: 14px; border-radius: 6px; border: none; font-weight: bold; text-transform: uppercase; cursor: pointer; }
         .btn-scarlet { background: #BB0000; color: white; }
         .btn-gray { background: #666666; color: white; }
-        button:disabled { opacity: 0.3; }
-        #wild-display { font-size: 1.2rem; color: #f1c40f; margin-top: 5px; }
+        button:disabled { opacity: 0.3; pointer-events: none; }
+        #wild-display { font-size: 1.1rem; color: #f1c40f; margin-top: 5px; }
+        .scoreboard-title { font-size: 0.7rem; color: #aaa; text-transform: uppercase; margin-bottom: 5px; }
     </style>
 </head>
 <body>
 
     <div id="splash-screen">
-        <div style="font-size: 1.8rem;">BIG JON GAMES</div>
-        <h1 style="font-size: 4rem; margin: 10px 0;">THREES</h1>
-        <button class="btn-gray" onclick="login()">JOIN LOBBY</button>
+        <div style="font-size: 1.5rem; letter-spacing: 2px;">BIG JON GAMES</div>
+        <h1 style="font-size: 3.5rem; margin: 10px 0;">THREES</h1>
+        <button class="btn-gray" onclick="login()">ENTER GAME</button>
     </div>
 
-    <div id="shuffle-view"><h2>SHUFFLING...</h2></div>
+    <div id="shuffle-view"><h2>DEALING...</h2></div>
 
     <header>
         <span id="round-info">VARSITY THREES</span>
         <div id="wild-display">WILD: 3s</div>
-        <div id="turn-msg">LOBBY</div>
+        <div id="turn-msg">WAITING...</div>
     </header>
 
     <div id="lobby-view" class="view-section active-view">
@@ -53,48 +54,47 @@
                 <button id="draw-btn" class="btn-scarlet" onclick="drawCard()">DRAW</button>
                 <button id="pickup-btn" class="btn-gray" onclick="takeDiscard()">TAKE</button>
                 <button id="out-btn" class="btn-scarlet" style="grid-column: span 2;" onclick="triggerOut()">I'M GOING OUT</button>
-                <button id="end-btn" class="btn-gray" style="grid-column: span 2; display:none;" onclick="submitFinalScore()">SUBMIT SCORE</button>
+                <button id="end-btn" class="btn-gray" style="grid-column: span 2; display:none; border: 2px solid gold;" onclick="submitFinalScore()">SUBMIT POINTS</button>
                 <button id="deal-next-btn" class="btn-scarlet" style="grid-column: span 2; display:none; margin-top:10px;" onclick="dealNextRound()">DEAL NEXT ROUND</button>
             </div>
             <div class="hand" id="my-hand"></div>
-            <p id="score-preview" style="color: #666; margin-top:10px;"></p>
+            <p id="score-preview" style="color: #BB0000; font-weight:bold; margin-top:0;"></p>
         </div>
     </div>
 
-    <footer><table style="width:100%;"><tbody id="score-body"></tbody></table></footer>
+    <footer>
+        <div class="scoreboard-title">Season Scoreboard</div>
+        <table style="width:100%; border-collapse: collapse;"><tbody id="score-body"></tbody></table>
+    </footer>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        let myName = "", myHand = [], currentDiscard = "---", isMyTurn = false, hasDrawn = false, selectedForScoring = [], totalPoints = 0;
+        let myName = "", myHand = [], currentDiscard = "---", isMyTurn = false, hasDrawn = false, selectedForScoring = [];
 
         function login() { myName = prompt("Name?") || "Player"; document.getElementById('splash-screen').style.display='none'; socket.emit('join-game', myName); }
         function readyUp() { socket.emit('player-ready'); }
         function triggerStart() { socket.emit('start-game-rotation'); }
-
-        // Logic for Deal Next Round
-        function dealNextRound() {
-            socket.emit('next-round-setup');
-            socket.emit('start-game-rotation');
-        }
+        function dealNextRound() { socket.emit('next-round-setup'); socket.emit('start-game-rotation'); }
 
         socket.on('update-lobby', (players) => {
             const list = document.getElementById('lobby-list');
             const scores = document.getElementById('score-body');
             list.innerHTML = ''; scores.innerHTML = '';
             players.forEach(p => {
-                list.innerHTML += `<div style="display:flex; justify-content:space-between; padding:5px;"><span>${p.name}</span><span>${p.ready?'READY':'...'}</span></div>`;
-                scores.innerHTML += `<tr><td>${p.name}</td><td style="text-align:right;">${p.score}</td></tr>`;
+                list.innerHTML += `<div style="display:flex; justify-content:space-between; padding:5px; border-bottom:1px solid #eee;"><span>${p.name}</span><span>${p.ready?'READY':'...'}</span></div>`;
+                scores.innerHTML += `<tr style="border-bottom: 1px solid #444;"><td>${p.name}</td><td style="text-align:right; font-weight:bold;">${p.score}</td></tr>`;
             });
         });
 
         socket.on('sync-round', (count) => {
             let wild = count;
-            if(count === 11) wild = "JOKERS (11)";
-            if(count === 12) wild = "QUEENS (12)";
-            if(count === 13) wild = "KINGS (13)";
-            document.getElementById('wild-display').innerText = "WILD: " + wild;
+            if(count === 11) wild = "J (11)";
+            if(count === 12) wild = "Q (12)";
+            if(count === 13) wild = "K (13)";
+            document.getElementById('wild-display').innerText = "WILD: " + wild + "s";
             document.getElementById('deal-next-btn').style.display = 'none';
+            document.getElementById('score-preview').innerText = "";
         });
 
         socket.on('shuffle-transition', () => { document.getElementById('shuffle-view').style.display = 'flex'; });
@@ -102,6 +102,7 @@
             document.getElementById('shuffle-view').style.display = 'none'; 
             document.getElementById('lobby-view').classList.remove('active-view');
             document.getElementById('game-view').classList.add('active-view');
+            document.getElementById('end-btn').style.display = 'none';
         });
 
         socket.on('receive-hand', (hand) => { myHand = hand; hasDrawn = false; selectedForScoring = []; renderHand(); });
@@ -109,6 +110,8 @@
         socket.on('update-turn', (data) => {
             isMyTurn = (data.activePlayer === myName);
             document.getElementById('turn-msg').innerText = isMyTurn ? "YOUR TURN!" : data.activePlayer.toUpperCase() + "'S TURN";
+            document.body.style.boxShadow = data.isEnding ? "inset 0 0 50px rgba(187,0,0,0.3)" : "none";
+            
             document.getElementById('draw-btn').disabled = !isMyTurn;
             document.getElementById('pickup-btn').disabled = !isMyTurn || currentDiscard === "---";
             document.getElementById('out-btn').disabled = !isMyTurn || data.isEnding;
@@ -123,12 +126,14 @@
 
         socket.on('force-score-view', () => {
             document.getElementById('end-btn').style.display = 'block';
-            document.getElementById('turn-msg').innerText = "TAP CARDS TO COUNT POINTS";
+            document.getElementById('turn-msg').innerText = "ROUND OVER - COUNT POINTS";
+            isMyTurn = false; // Freeze gameplay
+            document.getElementById('draw-btn').disabled = true;
+            document.getElementById('pickup-btn').disabled = true;
+            document.getElementById('out-btn').disabled = true;
         });
 
-        socket.on('show-next-deal-btn', () => {
-            document.getElementById('deal-next-btn').style.display = 'block';
-        });
+        socket.on('show-next-deal-btn', () => { document.getElementById('deal-next-btn').style.display = 'block'; });
 
         function drawCard() {
             if(!isMyTurn || hasDrawn) return;
@@ -144,8 +149,13 @@
             socket.emit('play-card', {player: "System", card: "---"}); renderHand();
         }
 
-        // Removed forced draw from triggerOut
-        function triggerOut() { if(isMyTurn && !hasDrawn) { if(confirm("Go out? (Must have a valid discard after this)")) { socket.emit('trigger-out', myName); hasDrawn = true; renderHand(); } } }
+        function triggerOut() {
+            if(isMyTurn && !hasDrawn) {
+                if(confirm("Going out? Round will end after everyone else takes one more turn.")) {
+                    socket.emit('trigger-out', myName);
+                }
+            }
+        }
 
         function renderHand() {
             const container = document.getElementById('my-hand');
@@ -158,11 +168,13 @@
                 if(!selectedForScoring.includes(i) && (card.includes('♥') || card.includes('♦'))) div.style.color = '#BB0000';
                 
                 div.onclick = () => {
+                    // Normal play: Discard to end turn
                     if(isMyTurn && hasDrawn && document.getElementById('end-btn').style.display === 'none') {
                         const c = myHand[i]; myHand.splice(i, 1);
                         hasDrawn = false; renderHand();
                         socket.emit('play-card', {player: myName, card: c});
                     } 
+                    // Scoring phase: Select cards to count
                     else if (document.getElementById('end-btn').style.display === 'block') {
                         if(selectedForScoring.includes(i)) selectedForScoring = selectedForScoring.filter(item => item !== i);
                         else selectedForScoring.push(i);
@@ -181,7 +193,7 @@
                 else if (['J','Q','K'].includes(val)) pts += 10;
                 else pts += parseInt(val) || 0;
             });
-            document.getElementById('score-preview').innerText = "Points this round: " + pts;
+            document.getElementById('score-preview').innerText = "Points to add: " + pts;
         }
 
         function submitFinalScore() {
@@ -192,9 +204,9 @@
                 else if (['J','Q','K'].includes(val)) pts += 10;
                 else pts += parseInt(val) || 0;
             });
-            totalPoints += pts;
-            socket.emit('submit-score', {name: myName, score: totalPoints});
+            socket.emit('submit-score', {name: myName, points: pts});
             document.getElementById('end-btn').style.display = 'none';
+            document.getElementById('score-preview').innerText = "Finalized!";
         }
     </script>
 </body>

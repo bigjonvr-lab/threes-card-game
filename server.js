@@ -14,7 +14,6 @@ function createMasterDeck() {
     const suits = ['♥', '♦', '♣', '♠'];
     const values = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
     let deck = [];
-    // Two decks shuffled together for plenty of cards
     for(let i=0; i<2; i++) {
         suits.forEach(s => values.forEach(v => deck.push(v + s)));
     }
@@ -39,7 +38,6 @@ io.on('connection', (socket) => {
 
     socket.on('start-game-rotation', () => {
         io.emit('shuffle-transition'); 
-
         setTimeout(() => {
             let masterDeck = createMasterDeck();
             players.forEach(p => {
@@ -47,11 +45,9 @@ io.on('connection', (socket) => {
                 for(let i=0; i < serverCardsThisRound; i++) p.hand.push(masterDeck.pop());
                 io.to(p.id).emit('receive-hand', p.hand);
             });
-
             turnIndex = 0;
             roundEnding = false;
             stopperId = null;
-            
             io.emit('game-transition');
             io.emit('sync-round', serverCardsThisRound);
             io.emit('update-turn', { activePlayer: players[turnIndex].name, isEnding: false });
@@ -59,21 +55,20 @@ io.on('connection', (socket) => {
         }, 3000); 
     });
 
+    socket.on('trigger-out', (name) => {
+        roundEnding = true;
+        stopperId = socket.id;
+        io.emit('log-action', `${name.toUpperCase()} IS GOING OUT!`);
+        io.emit('update-turn', { activePlayer: players[turnIndex].name, isEnding: true });
+    });
+
     socket.on('play-card', (data) => {
-        // Update discard pile
         io.emit('update-discard', data.card);
-
-        // Move to next player
         turnIndex = (turnIndex + 1) % players.length;
-
-        // Check if game should end
         if (roundEnding && players[turnIndex].id === stopperId) {
             io.emit('force-score-view');
         } else {
-            io.emit('update-turn', { 
-                activePlayer: players[turnIndex].name, 
-                isEnding: roundEnding 
-            });
+            io.emit('update-turn', { activePlayer: players[turnIndex].name, isEnding: roundEnding });
         }
     });
 
@@ -81,11 +76,6 @@ io.on('connection', (socket) => {
         const p = players.find(p => p.name === data.name);
         if(p) p.score = data.score;
         io.emit('update-lobby', players);
-    });
-
-    socket.on('next-round-setup', () => {
-        serverCardsThisRound++;
-        io.emit('sync-round', serverCardsThisRound);
     });
 
     socket.on('disconnect', () => {

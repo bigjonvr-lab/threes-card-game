@@ -8,7 +8,7 @@ let players = [];
 let turnIndex = 0;
 let roundEnding = false;
 let stopperId = null;
-let serverCardsThisRound = 3; 
+let cardsInHand = 3; // Starts at 3, goes to 13
 
 function createMasterDeck() {
     const suits = ['♥', '♦', '♣', '♠'];
@@ -42,17 +42,27 @@ io.on('connection', (socket) => {
             let masterDeck = createMasterDeck();
             players.forEach(p => {
                 p.hand = [];
-                for(let i=0; i < serverCardsThisRound; i++) p.hand.push(masterDeck.pop());
+                for(let i=0; i < cardsInHand; i++) p.hand.push(masterDeck.pop());
                 io.to(p.id).emit('receive-hand', p.hand);
             });
             turnIndex = 0;
             roundEnding = false;
             stopperId = null;
             io.emit('game-transition');
-            io.emit('sync-round', serverCardsThisRound);
+            io.emit('sync-round', cardsInHand);
             io.emit('update-turn', { activePlayer: players[turnIndex].name, isEnding: false });
             io.emit('update-discard', "---");
-        }, 3000); 
+        }, 2000); 
+    });
+
+    // NEW: Handle the increment for the next round
+    socket.on('next-round-setup', () => {
+        if (cardsInHand < 13) {
+            cardsInHand++;
+        } else {
+            cardsInHand = 3; // Reset after Kings
+        }
+        io.emit('log-action', `Preparing Round: ${cardsInHand} cards.`);
     });
 
     socket.on('trigger-out', (name) => {
@@ -63,14 +73,10 @@ io.on('connection', (socket) => {
 
     socket.on('play-card', (data) => {
         io.emit('update-discard', data.card);
-        
         if (data.player !== "System") {
             turnIndex = (turnIndex + 1) % players.length;
-            
-            // If the next player up is the person who went out, the round is OVER.
             if (roundEnding && players[turnIndex].id === stopperId) {
-                io.emit('force-score-view'); // Tell EVERYONE to submit scores
-                io.emit('update-turn', { activePlayer: "GAME OVER", isEnding: true });
+                io.emit('force-score-view');
             } else {
                 io.emit('update-turn', { activePlayer: players[turnIndex].name, isEnding: roundEnding });
             }
@@ -81,6 +87,7 @@ io.on('connection', (socket) => {
         const p = players.find(p => p.name === data.name);
         if(p) p.score = data.score;
         io.emit('update-lobby', players);
+        io.emit('show-next-deal-btn'); // Show button to everyone once someone submits
     });
 
     socket.on('disconnect', () => {

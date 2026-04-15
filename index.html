@@ -7,28 +7,56 @@
     <link href="https://fonts.googleapis.com/css2?family=Graduate&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Graduate', serif; background: #e0e0e0; margin: 0; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        /* SPLASH SCREEN & MASCOT */
         #splash-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #BB0000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; color: white; text-align: center; }
+        
+        @keyframes walkIn {
+            0% { left: -100px; transform: rotate(-5deg); }
+            50% { transform: rotate(5deg); }
+            100% { left: 50%; transform: translateX(-50%); }
+        }
+        @keyframes wave {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(-35deg); }
+        }
+        .mascot-container { position: relative; width: 60px; height: 100px; margin-bottom: 20px; animation: walkIn 2s ease-out forwards; }
+        .mascot-body { width: 40px; height: 50px; background: #fff; border-radius: 10px; position: absolute; bottom: 20px; left: 10px; border: 3px solid #333; }
+        .mascot-eye { width: 6px; height: 6px; background: #333; border-radius: 50%; position: absolute; top: 10px; }
+        .mascot-arm { width: 20px; height: 8px; background: #fff; border: 3px solid #333; position: absolute; top: 15px; left: -15px; border-radius: 5px; transform-origin: right center; animation: wave 0.6s ease-in-out 2s 4; }
+        .mascot-leg { width: 8px; height: 20px; background: #333; position: absolute; bottom: 0; }
+
+        /* GAME LAYOUT */
         #shuffle-view { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #e0e0e0; z-index: 900; display: none; align-items: center; justify-content: center; flex-direction: column; }
         .view-section { display: none; flex: 1; flex-direction: column; padding: 10px; overflow-y: auto; }
         .active-view { display: flex; }
         header { background: #BB0000; color: white; padding: 10px; text-align: center; border-bottom: 4px solid #666666; flex-shrink: 0; }
         footer { background: #333; color: white; padding: 10px; border-top: 4px solid #BB0000; height: 130px; overflow-y: auto; flex-shrink: 0; padding-bottom: 20px; }
+        
         .discard-pile { background: white; border: 4px solid #666666; border-radius: 10px; width: 70px; height: 100px; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin-bottom: 10px; }
         .hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 15px; padding-bottom: 30px; }
         .card { font-family: sans-serif; background: white; padding: 10px 5px; border-radius: 6px; font-weight: bold; min-width: 42px; text-align: center; border: 1px solid #999; cursor: pointer; user-select: none; font-size: 1rem; }
         .card.selected { background: #BB0000; color: white !important; transform: translateY(-8px); border: 2px solid #f1c40f; }
+        
         button { font-family: 'Graduate', serif; padding: 12px; border-radius: 6px; border: none; font-weight: bold; text-transform: uppercase; cursor: pointer; font-size: 0.85rem; }
         .btn-scarlet { background: #BB0000; color: white; }
         .btn-gray { background: #666666; color: white; }
         button:disabled { opacity: 0.3; pointer-events: none; }
-        #wild-display { font-size: 1.1rem; color: #f1c40f; margin-top: 5px; }
-        .scoreboard-title { font-size: 0.7rem; color: #aaa; text-transform: uppercase; margin-bottom: 5px; position: sticky; top: 0; background: #333; padding: 5px 0; }
         #score-preview { color: #BB0000; font-weight: bold; margin: 5px 0; height: 25px; font-size: 0.9rem; text-align: center; }
     </style>
 </head>
 <body>
 
     <div id="splash-screen">
+        <div class="mascot-container">
+            <div class="mascot-arm"></div>
+            <div class="mascot-body">
+                <div class="mascot-eye" style="left: 8px;"></div>
+                <div class="mascot-eye" style="right: 8px;"></div>
+            </div>
+            <div class="mascot-leg" style="left: 15px;"></div>
+            <div class="mascot-leg" style="right: 15px;"></div>
+        </div>
         <div style="font-size: 1.5rem; letter-spacing: 2px;">BIG JON GAMES</div>
         <h1 style="font-size: 3.5rem; margin: 10px 0;">THREES</h1>
         <button class="btn-gray" onclick="login()">ENTER GAME</button>
@@ -38,7 +66,7 @@
 
     <header>
         <span id="round-info">VARSITY THREES</span>
-        <div id="wild-display">WILD: 3s</div>
+        <div id="wild-display" style="color: #f1c40f;">WILD: 3s</div>
         <div id="turn-msg">WAITING...</div>
     </header>
 
@@ -64,7 +92,7 @@
     </div>
 
     <footer>
-        <div class="scoreboard-title">Season Rankings (Lowest Wins)</div>
+        <div style="font-size: 0.7rem; color: #aaa; text-transform: uppercase;">Rankings (Lowest Wins)</div>
         <table style="width:100%; border-collapse: collapse;"><tbody id="score-body"></tbody></table>
     </footer>
 
@@ -87,7 +115,6 @@
             const list = document.getElementById('lobby-list');
             const scores = document.getElementById('score-body');
             list.innerHTML = ''; scores.innerHTML = '';
-            
             const sortedPlayers = [...players].sort((a, b) => a.score - b.score);
             players.forEach(p => {
                 list.innerHTML += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee;"><span>${p.name}</span><span>${p.ready?'READY':'...'}</span></div>`;
@@ -99,7 +126,7 @@
 
         socket.on('sync-round', (count) => {
             let wild = count;
-            if(count === 11) wild = "J (11)"; if(count === 12) wild = "Q (12)"; if(count === 13) wild = "K (13)";
+            if(count === 11) wild = "J"; if(count === 12) wild = "Q"; if(count === 13) wild = "K";
             document.getElementById('wild-display').innerText = "WILD: " + wild + "s";
             document.getElementById('deal-next-btn').style.display = 'none';
             document.getElementById('score-preview').innerText = "";

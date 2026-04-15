@@ -25,10 +25,21 @@ let deckCount = 1;
 io.on('connection', (socket) => {
     socket.on('join-game', (name) => {
         socket.playerName = name;
-        if (!players.find(p => p.name === name)) {
+        let existingPlayer = players.find(p => p.name === name);
+        if (!existingPlayer) {
             players.push({ name, score: 0, ready: false, hand: [] });
         }
         io.emit('update-lobby', players);
+        // If a game is already in progress, tell the rejoining player to switch views
+        if (deck.length > 0) {
+            socket.emit('game-transition');
+            socket.emit('sync-round', roundCount);
+            socket.emit('update-discard', currentDiscard);
+            socket.emit('update-turn', { 
+                activePlayer: players[activePlayerIndex] ? players[activePlayerIndex].name : "", 
+                isEnding 
+            });
+        }
     });
 
     socket.on('set-decks', (num) => { deckCount = parseInt(num); });
@@ -40,22 +51,26 @@ io.on('connection', (socket) => {
 
     socket.on('request-cards', (name) => {
         const p = players.find(player => player.name === name);
-        if (p) io.emit('receive-hand-' + p.name, p.hand);
+        if (p) socket.emit('receive-hand-' + p.name, p.hand);
     });
 
     socket.on('start-game-rotation', () => { initGame(); });
 
     socket.on('reset-whole-game', () => {
-        players.forEach(p => { p.score = 0; p.ready = false; p.hand = []; });
+        players = []; // Clear player list on hard reset
         roundCount = 3;
         isEnding = false;
         playerWhoWentOut = "";
         currentDiscard = "---";
+        deck = [];
         io.emit('game-reset-broadcast');
-        io.emit('update-lobby', players);
     });
 
     socket.on('play-card', (data) => {
+        const p = players.find(pl => pl.name === socket.playerName);
+        if(p && data.card !== "---") {
+            p.hand = p.hand.filter(c => c !== data.card);
+        }
         currentDiscard = data.card;
         io.emit('update-discard', currentDiscard);
         nextTurn();
@@ -93,10 +108,9 @@ function initGame() {
     }
     deck.sort(() => Math.random() - 0.5);
     
-    let handSize = roundCount;
     players.forEach(p => {
         p.hand = []; 
-        for (let i = 0; i < handSize; i++) {
+        for (let i = 0; i < roundCount; i++) {
             if (deck.length > 0) p.hand.push(deck.pop());
         }
     });

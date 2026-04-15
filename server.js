@@ -5,7 +5,6 @@ const io = require('socket.io')(http);
 const path = require('path');
 const fs = require('fs');
 
-// Path Safety Net
 app.get('/', (req, res) => {
     const locations = [path.join(__dirname, 'public', 'index.html'), path.join(__dirname, 'index.html')];
     for (let loc of locations) { if (fs.existsSync(loc)) return res.sendFile(loc); }
@@ -59,9 +58,7 @@ io.on('connection', (socket) => {
         nextTurn();
     });
 
-    socket.on('broadcast-hand', (data) => {
-        io.emit('log-hand-reveal', data);
-    });
+    socket.on('broadcast-hand', (data) => { io.emit('log-hand-reveal', data); });
 
     socket.on('submit-score', (data) => {
         const p = players.find(p => p.name === data.name);
@@ -83,15 +80,11 @@ function initGame() {
         for (let s of suits) { for (let v of values) deck.push(v + s); }
     }
     deck.sort(() => Math.random() - 0.5);
-    
-    // Hand size math: Round + 2
     let handSize = roundCount + 2;
-
     players.forEach(p => {
         p.hand = [];
-        for (let i = 0; i < handSize; i++) p.hand.push(deck.pop());
+        for (let i = 0; i < handSize; i++) { if (deck.length > 0) p.hand.push(deck.pop()); }
     });
-    
     io.emit('shuffle-transition');
     setTimeout(() => {
         currentDiscard = deck.pop();
@@ -105,6 +98,7 @@ function initGame() {
 }
 
 function nextTurn() {
+    if (players.length === 0) return;
     activePlayerIndex = (activePlayerIndex + 1) % players.length;
     if (isEnding && players[activePlayerIndex].name === playerWhoWentOut) {
         io.emit('force-score-view');

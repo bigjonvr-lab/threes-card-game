@@ -5,7 +5,7 @@ const io = require('socket.io')(http);
 const path = require('path');
 const fs = require('fs');
 
-// THE SAFETY NET: Finds your file even if it's capitalized or in/out of a folder
+// THE SAFETY NET
 app.get('/', (req, res) => {
     const locations = [
         path.join(__dirname, 'public', 'index.html'),
@@ -16,7 +16,7 @@ app.get('/', (req, res) => {
     for (let loc of locations) {
         if (fs.existsSync(loc)) return res.sendFile(loc);
     }
-    res.status(404).send("Big Jon Games Error: index.html not found. Check your folder!");
+    res.status(404).send("Big Jon Games Error: index.html not found.");
 });
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(__dirname));
@@ -24,8 +24,11 @@ app.use(express.static(__dirname));
 let players = [];
 let deck = [];
 let currentDiscard = "---";
+let activePlayerIndex = 0;
 let roundCount = 3; 
 let isEnding = false;
+let playerWhoWentOut = "";
+let playersFinishedScoring = 0;
 
 io.on('connection', (socket) => {
     socket.on('join-game', (name) => {
@@ -36,19 +39,23 @@ io.on('connection', (socket) => {
         io.emit('update-lobby', players);
     });
 
-    // NEW HANDSHAKE: When the player's screen is ready, they call this
-    socket.on('request-cards', (name) => {
-        const p = players.find(player => player.name === name);
-        if (p && p.hand.length > 0) {
-            console.log(`Dealing to ${name}`);
-            io.emit('receive-hand-' + p.name, p.hand);
-        }
-    });
-
     socket.on('add-bot', () => {
         const botName = `Bot_${players.filter(p => p.isBot).length + 1}`;
         players.push({ name: botName, score: 0, ready: true, hand: [], isBot: true });
         io.emit('update-lobby', players);
+    });
+
+    socket.on('player-ready', () => {
+        const p = players.find(p => p.name === socket.playerName);
+        if (p) {
+            p.ready = true;
+            io.emit('update-lobby', players);
+        }
+    });
+
+    socket.on('request-cards', (name) => {
+        const p = players.find(player => player.name === name);
+        if (p && p.hand.length > 0) io.emit('receive-hand-' + p.name, p.hand);
     });
 
     socket.on('start-game-rotation', () => { initGame(); });
@@ -57,6 +64,22 @@ io.on('connection', (socket) => {
         currentDiscard = data.card;
         io.emit('update-discard', currentDiscard);
         nextTurn();
+    });
+
+    socket.on('trigger-out', (name) => {
+        isEnding = true;
+        playerWhoWentOut = name;
+        io.emit('going-out-alert', name);
+        nextTurn();
+    });
+
+    socket.on('submit-score', (data) => {
+        const p = players.find(p => p.name === data.name);
+        if (p) {
+            p.score += data.points;
+            playersFinishedScoring++;
+            io.emit('update-lobby', players);
+        }
     });
 });
 
@@ -78,12 +101,38 @@ function initGame() {
         io.emit('sync-round', roundCount);
         io.emit('update-discard', currentDiscard);
         io.emit('game-transition');
-        
-        // Tell everyone to request their cards now that the shuffle is done
         io.emit('trigger-card-request');
+        activePlayerIndex = 0;
+        sendTurnUpdate();
     }, 3000);
 }
 
-// ... (rest of nextTurn and runBotLogic from previous versions)
+function sendTurnUpdate() {
+    const activePlayer = players[activePlayerIndex];
+    if (!activePlayer) return;
+    io.emit('update-turn', { activePlayer: activePlayer.name, isEnding });
+    if (activePlayer.isBot) runBotLogic(activePlayer);
+}
+
+function nextTurn() {
+    activePlayerIndex = (activePlayerIndex + 1) % players.length;
+    if (isEnding && players[activePlayerIndex].name === playerWhoWentOut) {
+        io.emit('force-score-view');
+        return;
+    }
+    sendTurnUpdate();
+}
+
+function runBotLogic(bot) {
+    setTimeout(() => {
+        bot.hand.push(deck.pop());
+        setTimeout(() => {
+            const discard = bot.hand.shift();
+            currentDiscard = discard;
+            io.emit('update-discard', currentDiscard);
+            nextTurn();
+        }, 1200);
+    }, 1500);
+}
 
 http.listen(3000, () => { console.log('Server running on port 3000'); });

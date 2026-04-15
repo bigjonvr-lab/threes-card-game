@@ -104,7 +104,6 @@
             const list = document.getElementById('lobby-list'), scores = document.getElementById('score-body');
             list.innerHTML = ''; scores.innerHTML = '';
             
-            // Find the minimum score (first place)
             const validScores = players.filter(p => p.score > 0).map(p => p.score);
             const minScore = validScores.length > 0 ? Math.min(...validScores) : null;
             
@@ -114,7 +113,6 @@
             });
             
             sorted.forEach((p) => { 
-                // Add star if score matches the lowest non-zero score
                 const star = (minScore !== null && p.score === minScore) ? ' ⭐' : '';
                 scores.innerHTML += `<tr><td>${p.name}${star}</td><td style="text-align:right;">${p.score}</td></tr>`; 
             });
@@ -149,8 +147,14 @@
 
         socket.on('update-discard', (c) => { 
             currentDiscard = c; 
-            const dc = document.getElementById('last-card'); dc.innerText = c; 
-            dc.style.color = (c.includes('♥') || c.includes('♦')) ? 'var(--scarlet)' : 'black'; 
+            const dc = document.getElementById('last-card'); 
+            dc.innerText = c; 
+            // COLOR LOGIC FOR DISCARD PILE
+            if (c.includes('♥') || c.includes('♦')) {
+                dc.style.color = 'var(--scarlet)';
+            } else {
+                dc.style.color = 'black';
+            }
         });
 
         socket.on('going-out-alert', (name) => {
@@ -229,9 +233,20 @@
                 const div = document.createElement('div');
                 let v = card.replace(/[♥♦♣♠]/, '');
                 let check = (v==='A')?1:(v==='J')?11:(v==='Q')?12:(v==='K')?13:parseInt(v);
+                
                 div.className = 'card' + (check == currentWild ? ' wild-glow' : '') + (selectedAsPoints.includes(i) ? ' is-point' : '');
-                div.innerText = card; div.draggable = true;
-                div.style.color = (!selectedAsPoints.includes(i) && (card.includes('♥') || card.includes('♦'))) ? 'var(--scarlet)' : 'black';
+                div.innerText = card; 
+                div.draggable = true;
+                
+                // COLOR LOGIC FOR PLAYER HAND
+                if (selectedAsPoints.includes(i)) {
+                    div.style.color = 'white'; // Keep point-selected cards white text
+                } else if (card.includes('♥') || card.includes('♦')) {
+                    div.style.color = 'var(--scarlet)';
+                } else {
+                    div.style.color = 'black';
+                }
+
                 div.addEventListener('dragstart', () => { draggedItemIndex = i; div.classList.add('dragging'); });
                 div.addEventListener('dragover', e => e.preventDefault());
                 div.addEventListener('drop', () => { const temp = myHand.splice(draggedItemIndex, 1)[0]; myHand.splice(i, 0, temp); renderHand(); });

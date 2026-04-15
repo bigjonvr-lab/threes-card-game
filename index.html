@@ -8,12 +8,23 @@
     <style>
         :root { --scarlet: #BB0000; --grey: #666666; --gold: #f1c40f; }
         body { font-family: 'Graduate', serif; background: #e0e0e0; margin: 0; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+        
         #splash-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--scarlet); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; color: white; text-align: center; }
         
-        /* Shuffling View Styling */
-        #shuffle-view { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #222; z-index: 950; display: none; align-items: center; justify-content: center; flex-direction: column; color: var(--gold); }
-        .deck-anim { width: 60px; height: 90px; border: 2px solid white; border-radius: 5px; background: var(--scarlet); position: relative; animation: shuffle 0.5s infinite; }
-        @keyframes shuffle { 0% { transform: translateX(0); } 50% { transform: translateX(20px) rotate(5deg); } 100% { transform: translateX(0); } }
+        /* Shuffling View Styling - chaotic multi-card */
+        #shuffle-view { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #111; z-index: 950; display: none; align-items: center; justify-content: center; flex-direction: column; color: var(--gold); overflow: hidden; }
+        .card-container { position: relative; width: 200px; height: 150px; }
+        .mini-card { width: 45px; height: 65px; background: white; border: 2px solid var(--grey); position: absolute; border-radius: 5px; box-shadow: 2px 2px 10px rgba(0,0,0,0.8); animation: cardFly 0.7s infinite ease-in-out; }
+        .mini-card:nth-child(1) { animation-delay: 0s; left: 5px; }
+        .mini-card:nth-child(2) { animation-delay: 0.15s; left: 35px; }
+        .mini-card:nth-child(3) { animation-delay: 0.3s; left: 65px; }
+        .mini-card:nth-child(4) { animation-delay: 0.45s; left: 95px; }
+        .mini-card:nth-child(5) { animation-delay: 0.6s; left: 125px; }
+        @keyframes cardFly { 
+            0% { transform: translate(-20px, 80px) rotate(-20deg); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translate(50px, -80px) rotate(40deg); opacity: 0; }
+        }
 
         .view-section { display: none; flex: 1; flex-direction: column; padding: 10px; overflow-y: auto; }
         .active-view { display: flex; }
@@ -24,7 +35,7 @@
         .card { font-family: sans-serif; background: white; padding: 12px 6px; border-radius: 6px; font-weight: bold; min-width: 45px; text-align: center; border: 1px solid #999; cursor: grab; user-select: none; }
         .card.wild-glow { border: 3px solid var(--gold); box-shadow: 0 0 10px var(--gold); background: #fffde7; }
         .card.is-point { background: var(--scarlet) !important; color: white !important; border: 2px solid var(--gold); }
-        .card.dragging { opacity: 0.3; transform: scale(0.9); }
+        .card.dragging { opacity: 0.2; }
         button, select { font-family: 'Graduate', serif; padding: 12px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; }
         .btn-scarlet { background: var(--scarlet); color: white; }
         .btn-gray { background: var(--grey); color: white; }
@@ -42,8 +53,12 @@
     </div>
 
     <div id="shuffle-view">
-        <div class="deck-anim"></div>
-        <h2 style="margin-top: 20px;">SHUFFLING DECKS...</h2>
+        <div class="card-container">
+            <div class="mini-card"></div><div class="mini-card"></div>
+            <div class="mini-card"></div><div class="mini-card"></div>
+            <div class="mini-card"></div>
+        </div>
+        <h2 style="margin-top: 20px; letter-spacing: 1px;">SHUFFLING DECKS...</h2>
     </div>
 
     <header>
@@ -59,7 +74,8 @@
             <option value="1">1 Deck</option><option value="2">2 Decks</option><option value="3">3 Decks</option>
         </select>
         <button class="btn-scarlet" onclick="socket.emit('player-ready')">READY UP</button><br>
-        <button class="btn-gray" onclick="socket.emit('start-game-rotation')">START GAME</button>
+        <button class="btn-gray" onclick="socket.emit('start-game-rotation')">START GAME</button><br>
+        <button class="btn-gray" style="background:#444;" onclick="socket.emit('reset-whole-game')">RESET ENTIRE GAME</button>
     </div>
 
     <div id="game-view" class="view-section">
@@ -70,7 +86,8 @@
                 <button id="pickup-btn" class="btn-gray" onclick="takeDiscard()">TAKE</button>
                 <button id="out-btn" class="btn-scarlet" style="grid-column: span 2;" onclick="triggerOut()">I'M GOING OUT</button>
                 <button id="submit-btn" class="btn-scarlet" style="grid-column: span 2; display:none;" onclick="submitFinalScore()">SUBMIT UNMATCHED</button>
-                <button id="next-rd-btn" class="btn-gray" style="grid-column: span 2; display:none;" onclick="dealNext()">DEAL NEXT ROUND</button>
+                <button id="next-rd-btn" class="btn-gray" style="grid-column: span 2; display:none;" onclick="socket.emit('next-round-setup')">NEXT ROUND</button>
+                <button id="host-reset-btn" class="btn-gray" style="grid-column: span 2; background: #444; margin-top: 10px; display:none;" onclick="socket.emit('reset-whole-game')">FORCE HARD RESET</button>
             </div>
             <div id="score-preview" style="color: var(--scarlet); margin-top:10px; font-weight: bold;"></div>
             <div class="hand" id="my-hand"></div>
@@ -79,7 +96,7 @@
 
     <footer>
         <div id="game-log" style="font-size: 0.7rem; color: #ccc; margin-bottom: 5px; border-bottom: 1px solid #555;"></div>
-        <table style="width:100%;"><tbody id="score-body"></tbody></table>
+        <table style="width:100%; border-collapse: collapse;"><tbody id="score-body"></tbody></table>
     </footer>
 
     <script src="/socket.io/socket.io.js"></script>
@@ -92,15 +109,12 @@
             myName = prompt("Enter name:") || "Player"; 
             document.getElementById('splash-screen').style.display = 'none'; 
             socket.emit('join-game', myName); 
-            
             socket.on('receive-hand-' + myName, (hand) => {
-                myHand = hand; 
-                hasDrawn = false; 
-                selectedAsPoints = []; 
-                renderHand();
+                myHand = hand; hasDrawn = false; selectedAsPoints = []; renderHand();
             });
         }
 
+        socket.on('game-reset-broadcast', () => { location.reload(); });
         socket.on('trigger-card-request', () => { if (myName) socket.emit('request-cards', myName); });
 
         socket.on('update-lobby', (players) => {
@@ -109,17 +123,23 @@
             const sorted = [...players].sort((a, b) => a.score - b.score);
             players.forEach(p => { list.innerHTML += `<div style="display:flex; justify-content:space-between; padding:5px; border-bottom:1px solid #eee;"><span>${p.name}</span><span>${p.ready?'READY':'...'}</span></div>`; });
             sorted.forEach((p, index) => {
-                const crown = (index === 0 && p.score > 0) ? '<span class="crown">👑</span>' : '';
-                scores.innerHTML += `<tr><td>${crown}${p.name}</td><td style="text-align:right;">${p.score}</td></tr>`;
+                scores.innerHTML += `<tr><td>${index===0&&p.score>0?'👑':''}${p.name}</td><td style="text-align:right;">${p.score}</td></tr>`;
             });
-            if (roundOver && players[0].name === myName) document.getElementById('next-rd-btn').style.display = 'block';
+            if (players[0] && players[0].name === myName) {
+                document.getElementById('host-reset-btn').style.display = 'block';
+                if (roundOver) document.getElementById('next-rd-btn').style.display = 'block';
+            }
         });
 
         socket.on('sync-round', (count) => {
             currentWild = count;
-            if(count == 11) currentWild = "J"; if(count == 12) currentWild = "Q"; if(count == 13) currentWild = "K";
-            document.getElementById('wild-display').innerText = "WILD: " + currentWild + "s";
+            let label = count;
+            if(count == 11) label = "J"; if(count == 12) label = "Q"; if(count == 13) label = "K"; if(count == 1) label = "A";
+            document.getElementById('wild-display').innerText = "WILD: " + label + "s";
             roundOver = false;
+            document.getElementById('next-rd-btn').style.display = 'none';
+            document.getElementById('submit-btn').style.display = 'none';
+            document.getElementById('score-preview').innerText = "";
         });
 
         socket.on('shuffle-transition', () => { 
@@ -171,18 +191,17 @@
             container.innerHTML = '';
             myHand.forEach((card, i) => {
                 const div = document.createElement('div');
-                div.className = 'card' + (card.startsWith(currentWild) ? ' wild-glow' : '') + (selectedAsPoints.includes(i) ? ' is-point' : '');
+                let valStr = card.replace(/[♥♦♣♠]/, '');
+                // Map J,Q,K,A back to numbers for the wild-glow logic
+                let checkVal = valStr;
+                if(valStr === 'A') checkVal = 1; if(valStr === 'J') checkVal = 11; if(valStr === 'Q') checkVal = 12; if(valStr === 'K') checkVal = 13;
+
+                div.className = 'card' + (checkVal == currentWild ? ' wild-glow' : '') + (selectedAsPoints.includes(i) ? ' is-point' : '');
                 div.innerText = card;
                 div.draggable = true;
+                if (!selectedAsPoints.includes(i) && (card.includes('♥') || card.includes('♦'))) div.style.color = 'var(--scarlet)';
+                else if (!selectedAsPoints.includes(i)) div.style.color = 'black';
                 
-                // Color Logic
-                if (!selectedAsPoints.includes(i) && (card.includes('♥') || card.includes('♦'))) {
-                    div.style.color = 'var(--scarlet)';
-                } else if (!selectedAsPoints.includes(i)) {
-                    div.style.color = 'black';
-                }
-                
-                // Drag Logic
                 div.addEventListener('dragstart', () => { draggedItemIndex = i; div.classList.add('dragging'); });
                 div.addEventListener('dragend', () => { div.classList.remove('dragging'); draggedItemIndex = null; });
                 div.addEventListener('dragover', e => e.preventDefault());
@@ -191,7 +210,6 @@
                     myHand.splice(i, 0, temp);
                     renderHand();
                 });
-
                 div.onclick = () => {
                     if (isMyTurn && hasDrawn && !roundOver) {
                         const c = myHand.splice(i, 1)[0];
@@ -237,13 +255,6 @@
             socket.emit('broadcast-hand', {name: myName, hand: myHand, points: pts});
             socket.emit('submit-score', {name: myName, points: pts});
             document.getElementById('submit-btn').style.display = 'none';
-        }
-
-        function dealNext() {
-            socket.emit('next-round-setup');
-            socket.emit('start-game-rotation');
-            document.getElementById('next-rd-btn').style.display = 'none';
-            document.getElementById('score-preview').innerText = "";
         }
     </script>
 </body>

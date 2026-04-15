@@ -58,17 +58,21 @@ io.on('connection', (socket) => {
     socket.on('trigger-out', (name) => {
         roundEnding = true;
         stopperId = socket.id;
-        io.emit('log-action', `${name.toUpperCase()} IS GOING OUT!`);
         io.emit('update-turn', { activePlayer: players[turnIndex].name, isEnding: true });
     });
 
     socket.on('play-card', (data) => {
+        // Update the visual pile for everyone
         io.emit('update-discard', data.card);
-        turnIndex = (turnIndex + 1) % players.length;
-        if (roundEnding && players[turnIndex].id === stopperId) {
-            io.emit('force-score-view');
-        } else {
-            io.emit('update-turn', { activePlayer: players[turnIndex].name, isEnding: roundEnding });
+
+        // ONLY rotate the turn if a real player discarded
+        if (data.player !== "System") {
+            turnIndex = (turnIndex + 1) % players.length;
+            if (roundEnding && players[turnIndex].id === stopperId) {
+                io.emit('force-score-view');
+            } else {
+                io.emit('update-turn', { activePlayer: players[turnIndex].name, isEnding: roundEnding });
+            }
         }
     });
 
@@ -85,4 +89,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => console.log(`Varsity Threes live on ${PORT}`));
+http.listen(PORT, () => console.log(`Server live on ${PORT}`));

@@ -8,9 +8,6 @@
     <style>
         body { font-family: 'Graduate', serif; background: #e0e0e0; margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         #splash-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #BB0000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; color: white; text-align: center; }
-        .logo-text { font-size: 1.8rem; font-weight: bold; letter-spacing: 2px; margin-bottom: 10px; }
-        .game-title { font-size: 4rem; margin: 0 0 30px 0; }
-
         #shuffle-view { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #e0e0e0; z-index: 900; display: none; align-items: center; justify-content: center; flex-direction: column; }
         .view-section { display: none; flex: 1; flex-direction: column; padding: 15px; }
         .active-view { display: flex; }
@@ -18,32 +15,35 @@
         footer { background: #333; color: white; padding: 10px; border-top: 4px solid #BB0000; min-height: 80px; }
         .discard-pile { background: white; border: 4px solid #666666; border-radius: 10px; width: 80px; height: 110px; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; margin-bottom: 15px; }
         .hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 20px; }
-        .card { font-family: sans-serif; background: white; padding: 12px 6px; border-radius: 6px; font-weight: bold; min-width: 45px; text-align: center; border: 1px solid #999; cursor: pointer; transition: 0.2s; }
-        .card.selected { background: #BB0000; color: white !important; transform: translateY(-10px); border-color: white; }
+        .card { font-family: sans-serif; background: white; padding: 12px 6px; border-radius: 6px; font-weight: bold; min-width: 45px; text-align: center; border: 1px solid #999; cursor: pointer; }
+        .card.selected { background: #BB0000; color: white !important; transform: translateY(-5px); }
         button { font-family: 'Graduate', serif; padding: 14px; border-radius: 6px; border: none; font-weight: bold; text-transform: uppercase; cursor: pointer; }
         .btn-scarlet { background: #BB0000; color: white; }
         .btn-gray { background: #666666; color: white; }
         button:disabled { opacity: 0.3; }
+        #wild-display { font-size: 1.2rem; color: #f1c40f; margin-top: 5px; }
     </style>
 </head>
 <body>
 
     <div id="splash-screen">
-        <div class="logo-text">BIG JON GAMES</div>
-        <h1 class="game-title">THREES</h1>
+        <div style="font-size: 1.8rem;">BIG JON GAMES</div>
+        <h1 style="font-size: 4rem; margin: 10px 0;">THREES</h1>
         <button class="btn-gray" onclick="login()">JOIN LOBBY</button>
     </div>
 
-    <div id="shuffle-view">
-        <h2 style="margin-top: 40px;">SHUFFLING...</h2>
-    </div>
+    <div id="shuffle-view"><h2>SHUFFLING...</h2></div>
 
-    <header><span id="round-info">VARSITY THREES</span><div id="turn-msg">LOBBY</div></header>
+    <header>
+        <span id="round-info">VARSITY THREES</span>
+        <div id="wild-display">WILD: 3s</div>
+        <div id="turn-msg">LOBBY</div>
+    </header>
 
     <div id="lobby-view" class="view-section active-view">
         <div id="lobby-list" style="background:white; border-radius:10px; padding:15px; margin-bottom:20px; color:black;"></div>
         <button class="btn-scarlet" onclick="readyUp()">READY UP</button><br>
-        <button class="btn-gray" onclick="triggerStart()">START GAME</button>
+        <button class="btn-gray" id="start-btn" onclick="triggerStart()">START GAME</button>
     </div>
 
     <div id="game-view" class="view-section">
@@ -52,11 +52,12 @@
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; width:100%;">
                 <button id="draw-btn" class="btn-scarlet" onclick="drawCard()">DRAW</button>
                 <button id="pickup-btn" class="btn-gray" onclick="takeDiscard()">TAKE</button>
-                <button id="out-btn" class="btn-scarlet" style="grid-column: span 2;" onclick="triggerOut()">GO OUT</button>
-                <button id="end-btn" class="btn-gray" style="grid-column: span 2; display:none; border: 2px solid #BB0000;" onclick="submitFinalScore()">SUBMIT SCORE</button>
+                <button id="out-btn" class="btn-scarlet" style="grid-column: span 2;" onclick="triggerOut()">I'M GOING OUT</button>
+                <button id="end-btn" class="btn-gray" style="grid-column: span 2; display:none;" onclick="submitFinalScore()">SUBMIT SCORE</button>
+                <button id="deal-next-btn" class="btn-scarlet" style="grid-column: span 2; display:none; margin-top:10px;" onclick="dealNextRound()">DEAL NEXT ROUND</button>
             </div>
             <div class="hand" id="my-hand"></div>
-            <p id="score-preview" style="color: #666; font-size: 0.8rem; margin-top: 10px;"></p>
+            <p id="score-preview" style="color: #666; margin-top:10px;"></p>
         </div>
     </div>
 
@@ -71,6 +72,12 @@
         function readyUp() { socket.emit('player-ready'); }
         function triggerStart() { socket.emit('start-game-rotation'); }
 
+        // Logic for Deal Next Round
+        function dealNextRound() {
+            socket.emit('next-round-setup');
+            socket.emit('start-game-rotation');
+        }
+
         socket.on('update-lobby', (players) => {
             const list = document.getElementById('lobby-list');
             const scores = document.getElementById('score-body');
@@ -81,12 +88,20 @@
             });
         });
 
+        socket.on('sync-round', (count) => {
+            let wild = count;
+            if(count === 11) wild = "JOKERS (11)";
+            if(count === 12) wild = "QUEENS (12)";
+            if(count === 13) wild = "KINGS (13)";
+            document.getElementById('wild-display').innerText = "WILD: " + wild;
+            document.getElementById('deal-next-btn').style.display = 'none';
+        });
+
         socket.on('shuffle-transition', () => { document.getElementById('shuffle-view').style.display = 'flex'; });
         socket.on('game-transition', () => { 
             document.getElementById('shuffle-view').style.display = 'none'; 
             document.getElementById('lobby-view').classList.remove('active-view');
             document.getElementById('game-view').classList.add('active-view');
-            document.getElementById('end-btn').style.display = 'none';
         });
 
         socket.on('receive-hand', (hand) => { myHand = hand; hasDrawn = false; selectedForScoring = []; renderHand(); });
@@ -108,10 +123,11 @@
 
         socket.on('force-score-view', () => {
             document.getElementById('end-btn').style.display = 'block';
-            document.getElementById('turn-msg').innerText = "SELECT YOUR POINTS";
-            document.getElementById('draw-btn').disabled = true;
-            document.getElementById('pickup-btn').disabled = true;
-            document.getElementById('out-btn').disabled = true;
+            document.getElementById('turn-msg').innerText = "TAP CARDS TO COUNT POINTS";
+        });
+
+        socket.on('show-next-deal-btn', () => {
+            document.getElementById('deal-next-btn').style.display = 'block';
         });
 
         function drawCard() {
@@ -128,7 +144,8 @@
             socket.emit('play-card', {player: "System", card: "---"}); renderHand();
         }
 
-        function triggerOut() { if(isMyTurn && !hasDrawn) { if(confirm("Go out?")) { socket.emit('trigger-out', myName); drawCard(); } } }
+        // Removed forced draw from triggerOut
+        function triggerOut() { if(isMyTurn && !hasDrawn) { if(confirm("Go out? (Must have a valid discard after this)")) { socket.emit('trigger-out', myName); hasDrawn = true; renderHand(); } } }
 
         function renderHand() {
             const container = document.getElementById('my-hand');
@@ -141,21 +158,15 @@
                 if(!selectedForScoring.includes(i) && (card.includes('♥') || card.includes('♦'))) div.style.color = '#BB0000';
                 
                 div.onclick = () => {
-                    // Regular Turn: Discard
                     if(isMyTurn && hasDrawn && document.getElementById('end-btn').style.display === 'none') {
                         const c = myHand[i]; myHand.splice(i, 1);
                         hasDrawn = false; renderHand();
                         socket.emit('play-card', {player: myName, card: c});
                     } 
-                    // Scoring Phase: Select cards that count as points
                     else if (document.getElementById('end-btn').style.display === 'block') {
-                        if(selectedForScoring.includes(i)) {
-                            selectedForScoring = selectedForScoring.filter(item => item !== i);
-                        } else {
-                            selectedForScoring.push(i);
-                        }
-                        calculatePreview();
-                        renderHand();
+                        if(selectedForScoring.includes(i)) selectedForScoring = selectedForScoring.filter(item => item !== i);
+                        else selectedForScoring.push(i);
+                        calculatePreview(); renderHand();
                     }
                 };
                 container.appendChild(div);
@@ -170,7 +181,7 @@
                 else if (['J','Q','K'].includes(val)) pts += 10;
                 else pts += parseInt(val) || 0;
             });
-            document.getElementById('score-preview').innerText = "Selected Points: " + pts;
+            document.getElementById('score-preview').innerText = "Points this round: " + pts;
         }
 
         function submitFinalScore() {
@@ -184,7 +195,6 @@
             totalPoints += pts;
             socket.emit('submit-score', {name: myName, score: totalPoints});
             document.getElementById('end-btn').style.display = 'none';
-            document.getElementById('score-preview').innerText = "Score Submitted!";
         }
     </script>
 </body>

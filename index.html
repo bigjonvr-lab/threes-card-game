@@ -14,11 +14,14 @@
         .active-view { display: flex; }
         header { background: var(--scarlet); color: white; padding: 10px; text-align: center; border-bottom: 4px solid var(--grey); position: relative; }
         footer { background: #333; color: white; padding: 10px; border-top: 4px solid var(--scarlet); height: 160px; overflow-y: auto; }
-        .discard-pile { background: white; border: 4px solid var(--grey); border-radius: 10px; width: 70px; height: 100px; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin-bottom: 10px; }
-        .hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 15px; min-height: 120px; }
-        .card { font-family: sans-serif; background: white; padding: 10px 5px; border-radius: 6px; font-weight: bold; min-width: 45px; text-align: center; border: 1px solid #999; cursor: pointer; user-select: none; }
+        .discard-pile { background: white; border: 4px solid var(--grey); border-radius: 10px; width: 70px; height: 100px; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin-bottom: 10px; transition: color 0.1s; }
+        .hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; margin-top: 15px; min-height: 120px; padding: 10px; }
+        .card { font-family: sans-serif; background: white; padding: 12px 6px; border-radius: 6px; font-weight: bold; min-width: 45px; text-align: center; border: 1px solid #999; cursor: grab; user-select: none; transition: transform 0.1s, color 0.1s; }
+        .card:active { cursor: grabbing; transform: scale(1.1); }
         .card.wild-glow { border: 3px solid var(--gold); box-shadow: 0 0 10px var(--gold); background: #fffde7; }
+        /* is-point now overrides the standard suit color logic */
         .card.is-point { background: var(--scarlet) !important; color: white !important; border: 2px solid var(--gold); }
+        .card.dragging { opacity: 0.5; }
         button, select { font-family: 'Graduate', serif; padding: 12px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; }
         .btn-scarlet { background: var(--scarlet); color: white; }
         .btn-gray { background: var(--grey); color: white; }
@@ -31,21 +34,22 @@
     <div id="game-alert"></div>
 
     <div id="splash-screen">
-        <h1 style="font-size: 3rem; margin: 10px 0;">THREES</h1>
+        <h2 style="letter-spacing: 2px; opacity: 0.8; margin: 0;">BIG JON GAMES</h2>
+        <h1 style="font-size: 4rem; margin: 10px 0;">THREES</h1>
         <button class="btn-gray" onclick="login()">ENTER GAME</button>
     </div>
 
     <div id="shuffle-view"><h2>SHUFFLING...</h2></div>
 
     <header>
-        <span style="font-size: 1.5rem;">THREES</span>
+        <span style="font-size: 1.2rem;">THREES</span>
         <div id="wild-display" style="color: var(--gold);">WILD: 3s</div>
         <div id="turn-msg" style="font-size: 0.8rem;">WAITING...</div>
     </header>
 
     <div id="lobby-view" class="view-section active-view">
         <div id="lobby-list" style="background:white; border-radius:10px; padding:15px; margin-bottom:15px; color:black;"></div>
-        <label style="color: black; margin-bottom: 5px;">Decks:</label>
+        <label style="color: black;">Number of Decks:</label>
         <select id="deck-select" onchange="socket.emit('set-decks', this.value)" style="margin-bottom:15px;">
             <option value="1">1 Deck</option><option value="2">2 Decks</option><option value="3">3 Decks</option>
         </select>
@@ -54,7 +58,7 @@
     </div>
 
     <div id="game-view" class="view-section">
-        <div style="display:flex; flex-direction:column; align-items:center;">
+        <div style="flex-direction:column; align-items:center; display:flex;">
             <div class="discard-pile" id="last-card">--</div>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; width:100%; max-width: 400px;">
                 <button id="draw-btn" class="btn-scarlet" onclick="drawCard()">DRAW</button>
@@ -70,13 +74,14 @@
 
     <footer>
         <div id="game-log" style="font-size: 0.7rem; color: #ccc; margin-bottom: 5px; border-bottom: 1px solid #555;"></div>
-        <table style="width:100%;"><tbody id="score-body"></tbody></table>
+        <table style="width:100%; border-collapse: collapse;"><tbody id="score-body"></tbody></table>
     </footer>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
         let myName = "", myHand = [], currentDiscard = "---", isMyTurn = false, hasDrawn = false, selectedAsPoints = [], roundOver = false, currentWild = "3";
+        let draggedItemIndex = null;
 
         function login() { 
             myName = prompt("Enter name:") || "Player"; 
@@ -128,7 +133,12 @@
             currentDiscard = c; 
             const dc = document.getElementById('last-card');
             dc.innerText = c; 
-            dc.style.color = (c.includes('♥') || c.includes('♦')) ? 'var(--scarlet)' : 'black'; 
+            // FIXED: Color logic for the discard pile
+            if (c.includes('♥') || c.includes('♦')) {
+                dc.style.color = 'var(--scarlet)';
+            } else {
+                dc.style.color = 'black';
+            }
         });
 
         socket.on('going-out-alert', (name) => {
@@ -154,16 +164,36 @@
             container.innerHTML = '';
             myHand.forEach((card, i) => {
                 const div = document.createElement('div');
+                // The dragging and point status are CSS classes
                 div.className = 'card' + (card.startsWith(currentWild) ? ' wild-glow' : '') + (selectedAsPoints.includes(i) ? ' is-point' : '');
                 div.innerText = card;
-                if (!selectedAsPoints.includes(i) && (card.includes('♥') || card.includes('♦'))) div.style.color = 'var(--scarlet)';
+                div.draggable = true;
+
+                // FIXED: Standard color logic for Hearts and Diamonds
+                // But only if the card isn't currently selected as a point (is-point overrides this)
+                if (!selectedAsPoints.includes(i) && (card.includes('♥') || card.includes('♦'))) {
+                    div.style.color = 'var(--scarlet)';
+                } else if (!selectedAsPoints.includes(i)) {
+                    div.style.color = 'black';
+                }
                 
+                // Drag Logic
+                div.addEventListener('dragstart', () => { draggedItemIndex = i; div.classList.add('dragging'); });
+                div.addEventListener('dragend', () => { div.classList.remove('dragging'); draggedItemIndex = null; });
+                div.addEventListener('dragover', e => e.preventDefault());
+                div.addEventListener('drop', () => {
+                    const temp = myHand.splice(draggedItemIndex, 1)[0];
+                    myHand.splice(i, 0, temp);
+                    renderHand();
+                });
+
                 div.onclick = () => {
                     if (isMyTurn && hasDrawn && !roundOver) {
                         const c = myHand.splice(i, 1)[0];
                         hasDrawn = false; renderHand();
                         socket.emit('play-card', {player: myName, card: c});
                     } else if (roundOver) {
+                        // Scoring selection
                         if (selectedAsPoints.includes(i)) selectedAsPoints = selectedAsPoints.filter(idx => idx !== i);
                         else selectedAsPoints.push(i);
                         calculateScore(); renderHand();

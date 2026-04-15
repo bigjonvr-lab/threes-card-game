@@ -3,96 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Threes</title>
+    <title>Threes - Big Jon Games</title>
     <link href="https://fonts.googleapis.com/css2?family=Graduate&display=swap" rel="stylesheet">
     <style>
+        :root { --scarlet: #BB0000; --grey: #666666; --gold: #f1c40f; }
         body { font-family: 'Graduate', serif; background: #e0e0e0; margin: 0; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
         
-        /* SPLASH SCREEN & MASCOT */
-        #splash-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #BB0000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; color: white; text-align: center; }
-        
-        @keyframes walkIn {
-            0% { left: -100px; transform: rotate(-5deg); }
-            50% { transform: rotate(5deg); }
-            100% { left: 50%; transform: translateX(-50%); }
-        }
-        @keyframes wave {
-            0%, 100% { transform: rotate(0deg); }
-            50% { transform: rotate(-35deg); }
-        }
+        /* SPLASH & MASCOT */
+        #splash-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--scarlet); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; color: white; text-align: center; }
+        @keyframes walkIn { 0% { left: -100px; transform: rotate(-5deg); } 50% { transform: rotate(5deg); } 100% { left: 50%; transform: translateX(-50%); } }
+        @keyframes wave { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-35deg); } }
         .mascot-container { position: relative; width: 60px; height: 100px; margin-bottom: 20px; animation: walkIn 2s ease-out forwards; }
         .mascot-body { width: 40px; height: 50px; background: #fff; border-radius: 10px; position: absolute; bottom: 20px; left: 10px; border: 3px solid #333; }
         .mascot-eye { width: 6px; height: 6px; background: #333; border-radius: 50%; position: absolute; top: 10px; }
-        
-        /* Moved Arm down to shoulder level */
         .mascot-arm { width: 20px; height: 8px; background: #fff; border: 3px solid #333; position: absolute; top: 25px; left: -15px; border-radius: 5px; transform-origin: right center; animation: wave 0.6s ease-in-out 2s 4; }
-        
         .mascot-leg { width: 8px; height: 20px; background: #333; position: absolute; bottom: 0; }
 
-        /* SCARLET & GREY SHUFFLE ANIMATION */
+        /* SHUFFLE VIEW */
         #shuffle-view { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #e0e0e0; z-index: 900; display: none; align-items: center; justify-content: center; flex-direction: column; }
         .deck-container { position: relative; width: 80px; height: 110px; margin-bottom: 20px; }
         .deck-card { position: absolute; width: 100%; height: 100%; border: 3px solid #333; border-radius: 8px; box-shadow: 2px 2px 5px rgba(0,0,0,0.2); }
-        
+        /* Placeholder for Card Back Image */
+        .card-back-design { background: var(--scarlet); background-image: url('your-image-url-here.jpg'); background-size: cover; }
         @keyframes shuffleLeft { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-45px) rotate(-15deg); } }
         @keyframes shuffleRight { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(45px) rotate(15deg); } }
-        
-        .c1 { background: #BB0000; animation: shuffleLeft 0.5s infinite; z-index: 3; } /* Scarlet */
-        .c2 { background: #666666; animation: shuffleRight 0.5s infinite 0.1s; z-index: 2; } /* Grey */
-        .c3 { background: white; transform: translate(2px, 2px); z-index: 1; }
+        .c1 { animation: shuffleLeft 0.5s infinite; z-index: 3; }
+        .c2 { background: var(--grey) !important; animation: shuffleRight 0.5s infinite 0.1s; z-index: 2; }
+        .c3 { background: white !important; transform: translate(2px, 2px); z-index: 1; }
 
-        /* GAME LAYOUT */
+        /* NOTIFICATIONS */
+        #game-alert { position: fixed; top: 20%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); color: var(--gold); padding: 20px; border: 4px solid var(--scarlet); border-radius: 10px; z-index: 3000; display: none; text-align: center; font-size: 1.2rem; }
+
+        /* LAYOUT */
         .view-section { display: none; flex: 1; flex-direction: column; padding: 10px; overflow-y: auto; }
         .active-view { display: flex; }
-        header { background: #BB0000; color: white; padding: 10px; text-align: center; border-bottom: 4px solid #666666; flex-shrink: 0; }
-        footer { background: #333; color: white; padding: 10px; border-top: 4px solid #BB0000; height: 130px; overflow-y: auto; flex-shrink: 0; padding-bottom: 20px; }
+        header { background: var(--scarlet); color: white; padding: 10px; text-align: center; border-bottom: 4px solid var(--grey); flex-shrink: 0; position: relative; }
+        footer { background: #333; color: white; padding: 10px; border-top: 4px solid var(--scarlet); height: 150px; overflow-y: auto; flex-shrink: 0; }
         
-        .discard-pile { background: white; border: 4px solid #666666; border-radius: 10px; width: 70px; height: 100px; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin-bottom: 10px; }
-        .hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 15px; padding-bottom: 30px; }
-        .card { font-family: sans-serif; background: white; padding: 10px 5px; border-radius: 6px; font-weight: bold; min-width: 42px; text-align: center; border: 1px solid #999; cursor: pointer; user-select: none; font-size: 1rem; }
-        .card.selected { background: #BB0000; color: white !important; transform: translateY(-8px); border: 2px solid #f1c40f; }
+        .discard-pile { background: white; border: 4px solid var(--grey); border-radius: 10px; width: 70px; height: 100px; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin-bottom: 10px; }
+        .hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 15px; padding-bottom: 30px; min-height: 120px; }
         
-        button { font-family: 'Graduate', serif; padding: 12px; border-radius: 6px; border: none; font-weight: bold; text-transform: uppercase; cursor: pointer; font-size: 0.85rem; }
-        .btn-scarlet { background: #BB0000; color: white; }
-        .btn-gray { background: #666666; color: white; }
-        button:disabled { opacity: 0.3; pointer-events: none; }
-        #score-preview { color: #BB0000; font-weight: bold; margin: 5px 0; height: 25px; font-size: 0.9rem; text-align: center; }
+        /* CARD STYLES */
+        .card { font-family: sans-serif; background: white; padding: 10px 5px; border-radius: 6px; font-weight: bold; min-width: 42px; text-align: center; border: 1px solid #999; cursor: grab; user-select: none; font-size: 1rem; }
+        .card.wild-glow { border: 3px solid var(--gold); box-shadow: 0 0 15px var(--gold); background: #fffde7; }
+        .card.is-point { background: var(--scarlet) !important; color: white !important; border: 2px solid var(--gold); }
+
+        button, select { font-family: 'Graduate', serif; padding: 10px; border-radius: 6px; border: none; font-weight: bold; text-transform: uppercase; cursor: pointer; }
+        .btn-scarlet { background: var(--scarlet); color: white; }
+        .btn-gray { background: var(--grey); color: white; }
+        .btn-reset { position: absolute; top: 5px; right: 5px; font-size: 0.6rem; background: rgba(0,0,0,0.3); color: white; border: 1px solid white; }
+        
+        #score-preview { color: var(--scarlet); font-weight: bold; margin: 5px 0; min-height: 25px; text-align: center; }
+        .crown { color: var(--gold); margin-right: 5px; }
     </style>
 </head>
 <body>
 
+    <div id="game-alert"></div>
+
     <div id="splash-screen">
         <div class="mascot-container">
             <div class="mascot-arm"></div>
-            <div class="mascot-body">
-                <div class="mascot-eye" style="left: 8px;"></div>
-                <div class="mascot-eye" style="right: 8px;"></div>
-            </div>
-            <div class="mascot-leg" style="left: 15px;"></div>
-            <div class="mascot-leg" style="right: 15px;"></div>
+            <div class="mascot-body"><div class="mascot-eye" style="left: 8px;"></div><div class="mascot-eye" style="right: 8px;"></div></div>
+            <div class="mascot-leg" style="left: 15px;"></div><div class="mascot-leg" style="right: 15px;"></div>
         </div>
-        <div style="font-size: 1.5rem; letter-spacing: 2px;">BIG JON GAMES</div>
-        <h1 style="font-size: 3.5rem; margin: 10px 0;">THREES</h1>
+        <div style="font-size: 1.2rem;">BIG JON GAMES</div>
+        <h1 style="font-size: 3rem; margin: 10px 0;">THREES</h1>
         <button class="btn-gray" onclick="login()">ENTER GAME</button>
     </div>
 
     <div id="shuffle-view">
         <div class="deck-container">
-            <div class="deck-card c3"></div>
-            <div class="deck-card c2"></div>
-            <div class="deck-card c1"></div>
+            <div class="deck-card c3 card-back-design"></div>
+            <div class="deck-card c2 card-back-design"></div>
+            <div class="deck-card c1 card-back-design"></div>
         </div>
         <h2 style="letter-spacing: 3px; color: #333;">SHUFFLING...</h2>
     </div>
 
     <header>
+        <button class="btn-reset" onclick="location.reload()">RESET</button>
         <span id="round-info" style="font-size: 1.5rem; letter-spacing: 2px;">THREES</span>
-        <div id="wild-display" style="color: #f1c40f; font-size: 0.9rem;">WILD: 3s</div>
+        <div id="wild-display" style="color: var(--gold); font-size: 0.9rem;">WILD: 3s</div>
         <div id="turn-msg" style="font-size: 0.8rem; margin-top: 5px;">WAITING...</div>
     </header>
 
     <div id="lobby-view" class="view-section active-view">
-        <div id="lobby-list" style="background:white; border-radius:10px; padding:15px; margin-bottom:20px; color:black;"></div>
+        <div id="lobby-list" style="background:white; border-radius:10px; padding:15px; margin-bottom:15px; color:black;"></div>
+        <div style="margin-bottom: 10px; display: flex; gap: 10px; justify-content: center;">
+            <select id="deck-count" class="btn-gray">
+                <option value="1">1 DECK</option>
+                <option value="2">2 DECKS</option>
+                <option value="3">3 DECKS</option>
+            </select>
+            <button class="btn-gray" onclick="addBot()">ADD BOT</button>
+        </div>
         <button class="btn-scarlet" onclick="readyUp()">READY UP</button><br>
         <button class="btn-gray" id="start-btn" onclick="triggerStart()">START GAME</button>
     </div>
@@ -104,7 +109,7 @@
                 <button id="draw-btn" class="btn-scarlet" onclick="drawCard()">DRAW</button>
                 <button id="pickup-btn" class="btn-gray" onclick="takeDiscard()">TAKE</button>
                 <button id="out-btn" class="btn-scarlet" style="grid-column: span 2;" onclick="triggerOut()">I'M GOING OUT</button>
-                <button id="end-btn" class="btn-gray" style="grid-column: span 2; display:none; border: 2px solid gold;" onclick="submitFinalScore()">SUBMIT POINTS</button>
+                <button id="end-btn" class="btn-gray" style="grid-column: span 2; display:none; border: 2px solid gold;" onclick="submitFinalScore()">SUBMIT UNMATCHED</button>
                 <button id="deal-next-btn" class="btn-scarlet" style="grid-column: span 2; display:none; margin-top:10px;" onclick="dealNextRound()">DEAL NEXT ROUND</button>
             </div>
             <p id="score-preview"></p>
@@ -113,14 +118,15 @@
     </div>
 
     <footer>
-        <div style="font-size: 0.7rem; color: #aaa; text-transform: uppercase;">Rankings (Lowest Wins)</div>
+        <div style="font-size: 0.6rem; color: #aaa; text-transform: uppercase;">Rankings & Hand History</div>
+        <div id="game-log" style="font-size: 0.6rem; height: 40px; overflow-y: auto; border-bottom: 1px solid #444; margin-bottom: 5px;"></div>
         <table style="width:100%; border-collapse: collapse;"><tbody id="score-body"></tbody></table>
     </footer>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        let myName = "", myHand = [], currentDiscard = "---", isMyTurn = false, hasDrawn = false, selectedForScoring = [];
+        let myName = "", myHand = [], currentDiscard = "---", isMyTurn = false, hasDrawn = false, selectedAsPoints = [], roundOver = false, currentWild = "3";
 
         function login() { 
             myName = prompt("Enter name:") || "Player"; 
@@ -129,28 +135,36 @@
         }
 
         function readyUp() { socket.emit('player-ready'); }
-        function triggerStart() { socket.emit('start-game-rotation'); }
+        function triggerStart() { 
+            const decks = document.getElementById('deck-count').value;
+            socket.emit('set-decks', decks);
+            socket.emit('start-game-rotation'); 
+        }
         function dealNextRound() { socket.emit('next-round-setup'); socket.emit('start-game-rotation'); }
+        function addBot() { socket.emit('add-bot'); }
 
         socket.on('update-lobby', (players) => {
             const list = document.getElementById('lobby-list');
             const scores = document.getElementById('score-body');
             list.innerHTML = ''; scores.innerHTML = '';
-            const sortedPlayers = [...players].sort((a, b) => a.score - b.score);
-            players.forEach(p => {
-                list.innerHTML += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee;"><span>${p.name}</span><span>${p.ready?'READY':'...'}</span></div>`;
-            });
-            sortedPlayers.forEach(p => {
-                scores.innerHTML += `<tr style="border-bottom: 1px solid #444;"><td>${p.name}</td><td style="text-align:right; font-weight:bold;">${p.score}</td></tr>`;
+            const sorted = [...players].sort((a, b) => a.score - b.score);
+            
+            players.forEach(p => { list.innerHTML += `<div style="display:flex; justify-content:space-between; padding:5px; border-bottom:1px solid #eee;"><span>${p.name}</span><span>${p.ready?'READY':'...'}</span></div>`; });
+            
+            sorted.forEach((p, index) => {
+                const crown = (index === 0 && p.score > 0) ? '<span class="crown">👑</span>' : '';
+                scores.innerHTML += `<tr style="border-bottom: 1px solid #444;"><td>${crown}${p.name}</td><td style="text-align:right; font-weight:bold;">${p.score}</td></tr>`;
             });
         });
 
         socket.on('sync-round', (count) => {
-            let wild = count;
-            if(count === 11) wild = "J"; if(count === 12) wild = "Q"; if(count === 13) wild = "K";
-            document.getElementById('wild-display').innerText = "WILD: " + wild + "s";
+            currentWild = count;
+            if(count === 11) currentWild = "J"; if(count === 12) currentWild = "Q"; if(count === 13) currentWild = "K";
+            document.getElementById('wild-display').innerText = "WILD: " + currentWild + "s";
             document.getElementById('deal-next-btn').style.display = 'none';
+            document.getElementById('end-btn').style.display = 'none';
             document.getElementById('score-preview').innerText = "";
+            roundOver = false;
         });
 
         socket.on('shuffle-transition', () => { document.getElementById('shuffle-view').style.display = 'flex'; });
@@ -160,12 +174,19 @@
             document.getElementById('game-view').classList.add('active-view');
         });
 
-        socket.on('receive-hand', (hand) => { myHand = hand; hasDrawn = false; selectedForScoring = []; renderHand(); });
+        socket.on('receive-hand', (hand) => { myHand = hand; hasDrawn = false; selectedAsPoints = []; renderHand(); });
+
+        socket.on('going-out-alert', (name) => {
+            const alert = document.getElementById('game-alert');
+            alert.innerHTML = `⚠️ <strong>${name.toUpperCase()} IS GOING OUT!</strong><br>Final turn for everyone else!`;
+            alert.style.display = 'block';
+            setTimeout(() => { alert.style.display = 'none'; }, 4000);
+        });
 
         socket.on('update-turn', (data) => {
             isMyTurn = (data.activePlayer === myName);
             document.getElementById('turn-msg').innerText = isMyTurn ? "YOUR TURN!" : data.activePlayer.toUpperCase() + "'S TURN";
-            document.body.style.boxShadow = data.isEnding ? "inset 0 0 50px rgba(187,0,0,0.3)" : "none";
+            document.body.style.boxShadow = data.isEnding ? "inset 0 0 50px rgba(187,0,0,0.5)" : "none";
             document.getElementById('draw-btn').disabled = !isMyTurn;
             document.getElementById('pickup-btn').disabled = !isMyTurn || currentDiscard === "---";
             document.getElementById('out-btn').disabled = !isMyTurn || data.isEnding;
@@ -175,17 +196,20 @@
             currentDiscard = c; 
             const dc = document.getElementById('last-card');
             dc.innerText = c; 
-            dc.style.color = (c.includes('♥') || c.includes('♦')) ? '#BB0000' : 'black'; 
+            dc.style.color = (c.includes('♥') || c.includes('♦')) ? 'var(--scarlet)' : 'black'; 
         });
 
         socket.on('force-score-view', () => {
+            roundOver = true;
             document.getElementById('end-btn').style.display = 'block';
-            document.getElementById('turn-msg').innerText = "ROUND OVER";
-            document.getElementById('score-preview').innerHTML = "⚠️ <span style='color:black'>CLICK CARDS TO ADD POINTS</span>";
-            isMyTurn = false;
+            document.getElementById('score-preview').innerHTML = "CLICK YOUR POINTS (UNMATCHED)";
+            renderHand();
         });
 
-        socket.on('show-next-deal-btn', () => { document.getElementById('deal-next-btn').style.display = 'block'; });
+        socket.on('log-hand-reveal', (data) => {
+            const log = document.getElementById('game-log');
+            log.innerHTML = `<strong>${data.name}</strong>: ${data.points}pts (${data.hand.join(', ')})<br>` + log.innerHTML;
+        });
 
         function drawCard() {
             if(!isMyTurn || hasDrawn) return;
@@ -201,7 +225,7 @@
             socket.emit('play-card', {player: "System", card: "---"}); renderHand();
         }
 
-        function triggerOut() { if(isMyTurn && !hasDrawn) { if(confirm("Going out? You freeze here. Everyone else gets ONE turn.")) { socket.emit('trigger-out', myName); } } }
+        function triggerOut() { if(isMyTurn && !hasDrawn && confirm("Ready to go out?")) { socket.emit('trigger-out', myName); } }
 
         function renderHand() {
             const container = document.getElementById('my-hand');
@@ -209,43 +233,60 @@
             myHand.forEach((card, i) => {
                 const div = document.createElement('div');
                 div.className = 'card';
-                if(selectedForScoring.includes(i)) div.classList.add('selected');
+                div.draggable = !roundOver;
+                div.dataset.index = i;
+                
+                // Wild Glow logic
+                if (card.startsWith(currentWild)) div.classList.add('wild-glow');
+                if (selectedAsPoints.includes(i)) div.classList.add('is-point');
+                
                 div.innerText = card;
-                if(!selectedForScoring.includes(i) && (card.includes('♥') || card.includes('♦'))) div.style.color = '#BB0000';
+                if(!selectedAsPoints.includes(i) && (card.includes('♥') || card.includes('♦'))) div.style.color = 'var(--scarlet)';
+                
                 div.onclick = () => {
-                    if(isMyTurn && hasDrawn && document.getElementById('end-btn').style.display === 'none') {
+                    if(isMyTurn && hasDrawn && !roundOver) {
                         const c = myHand[i]; myHand.splice(i, 1);
                         hasDrawn = false; renderHand();
                         socket.emit('play-card', {player: myName, card: c});
-                    } 
-                    else if (document.getElementById('end-btn').style.display === 'block') {
-                        if(selectedForScoring.includes(i)) selectedForScoring = selectedForScoring.filter(item => item !== i);
-                        else selectedForScoring.push(i);
+                    } else if (roundOver) {
+                        if(selectedAsPoints.includes(i)) selectedAsPoints = selectedAsPoints.filter(idx => idx !== i);
+                        else selectedAsPoints.push(i);
                         calculatePreview(); renderHand();
                     }
                 };
+
+                div.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', i); });
+                div.addEventListener('dragover', (e) => { e.preventDefault(); });
+                div.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
+                    const toIdx = parseInt(div.dataset.index);
+                    const draggedItem = myHand.splice(fromIdx, 1)[0];
+                    myHand.splice(toIdx, 0, draggedItem);
+                    renderHand();
+                });
                 container.appendChild(div);
             });
         }
 
         function calculatePreview() {
             let pts = 0;
-            selectedForScoring.forEach(idx => {
+            selectedAsPoints.forEach(idx => {
                 let val = myHand[idx].replace(/[♥♦♣♠]/, '');
                 if (val === 'A') pts += 1; else if (['J','Q','K'].includes(val)) pts += 10; else pts += parseInt(val) || 0;
             });
-            document.getElementById('score-preview').innerHTML = "<strong>Points to add: " + pts + "</strong>";
+            document.getElementById('score-preview').innerText = "Points Selected: " + pts;
         }
 
         function submitFinalScore() {
             let pts = 0;
-            selectedForScoring.forEach(idx => {
+            selectedAsPoints.forEach(idx => {
                 let val = myHand[idx].replace(/[♥♦♣♠]/, '');
                 if (val === 'A') pts += 1; else if (['J','Q','K'].includes(val)) pts += 10; else pts += parseInt(val) || 0;
             });
+            socket.emit('broadcast-hand', {name: myName, hand: myHand, points: pts});
             socket.emit('submit-score', {name: myName, points: pts});
             document.getElementById('end-btn').style.display = 'none';
-            document.getElementById('score-preview').innerText = "Score Locked.";
         }
     </script>
 </body>

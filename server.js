@@ -14,6 +14,7 @@ function createMasterDeck() {
     const suits = ['♥', '♦', '♣', '♠'];
     const values = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
     let deck = [];
+    // Two decks shuffled together for plenty of cards
     for(let i=0; i<2; i++) {
         suits.forEach(s => values.forEach(v => deck.push(v + s)));
     }
@@ -25,22 +26,19 @@ app.get('/', (req, res) => {
 });
 
 io.on('connection', (socket) => {
-    // 1. Join the Lobby
     socket.on('join-game', (name) => {
         players.push({ id: socket.id, name: name, hand: [], score: 0, ready: false });
         io.emit('update-lobby', players);
     });
 
-    // 2. Toggle Ready Status
     socket.on('player-ready', () => {
         const p = players.find(p => p.id === socket.id);
         if(p) p.ready = !p.ready;
         io.emit('update-lobby', players);
     });
 
-    // 3. Start Game (Triggered from Lobby)
     socket.on('start-game-rotation', () => {
-        io.emit('shuffle-transition'); // Start the animation on all screens
+        io.emit('shuffle-transition'); 
 
         setTimeout(() => {
             let masterDeck = createMasterDeck();
@@ -58,16 +56,24 @@ io.on('connection', (socket) => {
             io.emit('sync-round', serverCardsThisRound);
             io.emit('update-turn', { activePlayer: players[turnIndex].name, isEnding: false });
             io.emit('update-discard', "---");
-        }, 3000); // 3-second shuffle
+        }, 3000); 
     });
 
     socket.on('play-card', (data) => {
+        // Update discard pile
         io.emit('update-discard', data.card);
+
+        // Move to next player
         turnIndex = (turnIndex + 1) % players.length;
+
+        // Check if game should end
         if (roundEnding && players[turnIndex].id === stopperId) {
             io.emit('force-score-view');
         } else {
-            io.emit('update-turn', { activePlayer: players[turnIndex].name, isEnding: roundEnding });
+            io.emit('update-turn', { 
+                activePlayer: players[turnIndex].name, 
+                isEnding: roundEnding 
+            });
         }
     });
 

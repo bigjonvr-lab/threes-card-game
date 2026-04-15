@@ -93,8 +93,6 @@ function initGame() {
     deck.sort(() => Math.random() - 0.5);
     
     let handSize = roundCount;
-    if (roundCount === 1) handSize = 1; 
-
     players.forEach(p => {
         p.hand = []; 
         for (let i = 0; i < handSize; i++) {

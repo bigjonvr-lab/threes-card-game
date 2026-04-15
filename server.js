@@ -17,7 +17,7 @@ let players = [];
 let deck = [];
 let currentDiscard = "---";
 let activePlayerIndex = 0;
-let roundCount = 3; 
+let roundCount = 3; // Start at 3 (3s are wild, 3 cards dealt)
 let isEnding = false;
 let playerWhoWentOut = "";
 let deckCount = 1;
@@ -40,11 +40,20 @@ io.on('connection', (socket) => {
 
     socket.on('request-cards', (name) => {
         const p = players.find(player => player.name === name);
-        // ONLY SEND IF HAND EXISTS AND IS THE CORRECT SIZE
         if (p) io.emit('receive-hand-' + p.name, p.hand);
     });
 
     socket.on('start-game-rotation', () => { initGame(); });
+
+    socket.on('reset-whole-game', () => {
+        players.forEach(p => { p.score = 0; p.ready = false; p.hand = []; });
+        roundCount = 3;
+        isEnding = false;
+        playerWhoWentOut = "";
+        currentDiscard = "---";
+        io.emit('game-reset-broadcast');
+        io.emit('update-lobby', players);
+    });
 
     socket.on('play-card', (data) => {
         currentDiscard = data.card;
@@ -67,10 +76,11 @@ io.on('connection', (socket) => {
     });
 
     socket.on('next-round-setup', () => {
-        roundCount++;
-        if (roundCount > 13) roundCount = 3;
+        roundCount++; 
+        if (roundCount > 13) roundCount = 1; // Loop back to Aces if you go past Kings
         isEnding = false;
         playerWhoWentOut = "";
+        initGame(); 
     });
 });
 
@@ -82,20 +92,20 @@ function initGame() {
     }
     deck.sort(() => Math.random() - 0.5);
     
-    // Exact Math: Round + 2
-    let handSize = roundCount + 2;
+    // THE FIX: Hand Size = Current Round/Wild Value
+    let handSize = roundCount;
+    // Special check for Ace (Round 1)
+    if (roundCount === 1) handSize = 1; 
 
     players.forEach(p => {
-        p.hand = []; // FORCED RESET
+        p.hand = []; 
         for (let i = 0; i < handSize; i++) {
             if (deck.length > 0) p.hand.push(deck.pop());
         }
     });
     
-    // SHUFFLE ANIMATION TRIGGER
     io.emit('shuffle-transition');
     
-    // 3 Second Delay for Shuffling
     setTimeout(() => {
         currentDiscard = deck.pop();
         io.emit('sync-round', roundCount);

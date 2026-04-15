@@ -9,33 +9,45 @@ app.use(express.static(__dirname));
 
 let rooms = {};
 
+function getActiveRooms() {
+    return Object.keys(rooms).map(id => ({
+        id,
+        count: rooms[id].players.length,
+        started: rooms[id].started
+    }));
+}
+
 io.on('connection', (socket) => {
+    socket.emit('room-list', getActiveRooms());
+
     socket.on('join-room', (data) => {
         const { roomId, name } = data;
-        socket.join(roomId);
-        socket.roomId = roomId;
+        const rid = roomId.toUpperCase();
+        socket.join(rid);
+        socket.roomId = rid;
         socket.playerName = name;
 
-        if (!rooms[roomId]) {
-            rooms[roomId] = {
+        if (!rooms[rid]) {
+            rooms[rid] = {
                 players: [], deck: [], discard: "---",
                 activeIdx: 0, round: 3, isEnding: false,
                 outPlayer: "", deckCount: 1, started: false
             };
         }
 
-        let r = rooms[roomId];
+        let r = rooms[rid];
         if (!r.players.find(p => p.name === name)) {
             r.players.push({ name, score: 0, ready: false, hand: [] });
         }
 
-        io.to(roomId).emit('update-lobby', r.players);
+        io.to(rid).emit('update-lobby', r.players);
+        io.emit('room-list', getActiveRooms());
         
         if (r.started) {
             socket.emit('game-transition');
             socket.emit('sync-round', r.round);
             socket.emit('update-discard', r.discard);
-            io.to(roomId).emit('update-turn', { activePlayer: r.players[r.activeIdx].name, isEnding: r.isEnding });
+            io.to(rid).emit('update-turn', { activePlayer: r.players[r.activeIdx].name, isEnding: r.isEnding });
         }
     });
 
@@ -51,15 +63,16 @@ io.on('connection', (socket) => {
     });
 
     socket.on('start-game-rotation', () => {
-        let r = rooms[socket.roomId];
-        if (r) initGame(socket.roomId);
+        if (rooms[socket.roomId]) initGame(socket.roomId);
     });
 
     socket.on('play-card', (data) => {
         let r = rooms[socket.roomId];
         if(!r) return;
         const p = r.players.find(pl => pl.name === socket.playerName);
-        if(p && data.card !== "---") p.hand = p.hand.filter(c => c !== data.card);
+        if(p && data.card !== "---") {
+            p.hand = p.hand.filter(c => c !== data.card);
+        }
         r.discard = data.card;
         io.to(socket.roomId).emit('update-discard', r.discard);
         nextTurn(socket.roomId);
@@ -106,12 +119,18 @@ io.on('connection', (socket) => {
         if(rooms[rid]) {
             delete rooms[rid];
             io.to(rid).emit('game-reset-broadcast');
+            io.emit('room-list', getActiveRooms());
         }
+    });
+
+    socket.on('disconnect', () => {
+        io.emit('room-list', getActiveRooms());
     });
 });
 
 function initGame(roomId) {
     let r = rooms[roomId];
+    if(!r) return;
     r.deck = [];
     r.started = true;
     const suits = ['♥', '♦', '♣', '♠'], values = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
@@ -119,10 +138,14 @@ function initGame(roomId) {
         for (let s of suits) { for (let v of values) r.deck.push(v + s); }
     }
     r.deck.sort(() => Math.random() - 0.5);
+    
     r.players.forEach(p => {
         p.hand = [];
-        for (let i = 0; i < r.round; i++) p.hand.push(r.deck.pop());
+        for (let i = 0; i < r.round; i++) {
+            if (r.deck.length > 0) p.hand.push(r.deck.pop());
+        }
     });
+
     io.to(roomId).emit('shuffle-transition');
     setTimeout(() => {
         r.discard = r.deck.pop();
@@ -137,6 +160,7 @@ function initGame(roomId) {
 
 function nextTurn(roomId) {
     let r = rooms[roomId];
+    if(!r) return;
     r.activeIdx = (r.activeIdx + 1) % r.players.length;
     if (r.isEnding && r.players[r.activeIdx].name === r.outPlayer) {
         io.to(roomId).emit('force-score-view');

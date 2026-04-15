@@ -13,7 +13,7 @@
         .login-box { background: rgba(0,0,0,0.2); padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px; width: 85%; max-width: 350px; }
         input { padding: 12px; border-radius: 5px; border: none; font-family: 'Graduate'; }
 
-        /* PULSE & SHUFFLE ANIMATIONS */
+        /* Animations */
         @keyframes pulse-gold { 0% { box-shadow: 0 0 0 0 rgba(241, 196, 15, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(241, 196, 15, 0); } 100% { box-shadow: 0 0 0 0 rgba(241, 196, 15, 0); } }
         .pulse { animation: pulse-gold 1.5s infinite; border: 3px solid var(--gold) !important; }
 
@@ -50,6 +50,7 @@
     <div id="game-alert"></div>
     <div id="splash-screen">
         <h1>THREES</h1>
+        <p style="margin-top: -15px; margin-bottom: 25px; letter-spacing: 2px; font-size: 0.9rem;">BIG JON GAMES</p>
         <div class="login-box">
             <input type="text" id="name-input" placeholder="YOUR NAME">
             <button class="btn-gray" onclick="login()">ENTER LOBBY</button>
@@ -84,6 +85,7 @@
                 <button id="pickup-btn" class="btn-gray" onclick="takeDiscard()">TAKE</button>
                 <button id="sort-btn" class="btn-blue" onclick="toggleSortMode()">SORT HAND</button>
                 <button id="out-btn" class="btn-scarlet" onclick="triggerOut()">GO OUT</button>
+                
                 <button id="submit-btn" class="btn-scarlet" style="grid-column: span 2; display:none;" onclick="submitFinalScore()">SUBMIT POINTS</button>
                 <button id="next-rd-btn" class="btn-gray" style="grid-column: span 2; display:none;" onclick="socket.emit('next-round-setup')">NEXT ROUND</button>
             </div>
@@ -135,8 +137,15 @@
             currentWild = c; 
             let label = (c==1)?'A':(c==11)?'J':(c==12)?'Q':(c==13)?'K':c;
             document.getElementById('wild-display').innerText = "WILD: " + label + "s";
-            roundOver = false; document.getElementById('next-rd-btn').style.display = 'none';
+            roundOver = false; selectedAsPoints = []; hasDrawn = false;
+            document.getElementById('next-rd-btn').style.display = 'none';
             document.getElementById('submit-btn').style.display = 'none';
+            document.getElementById('out-btn').style.display = 'block';
+            document.getElementById('draw-btn').style.display = 'block';
+            document.getElementById('pickup-btn').style.display = 'block';
+            document.getElementById('sort-btn').style.display = 'block';
+            document.getElementById('score-preview').innerText = "";
+            renderHand();
         });
 
         socket.on('receive-hand', (hand) => { myHand = hand; renderHand(); });
@@ -167,18 +176,19 @@
 
         socket.on('force-score-view', () => { 
             roundOver = true; 
+            document.getElementById('out-btn').style.display = 'none';
+            document.getElementById('draw-btn').style.display = 'none';
+            document.getElementById('pickup-btn').style.display = 'none';
+            document.getElementById('sort-btn').style.display = 'none';
             document.getElementById('submit-btn').style.display = 'block'; 
             document.getElementById('next-rd-btn').style.display = 'block';
             renderHand(); 
         });
 
-        // RESTORED: Listeners for game log
         socket.on('log-hand-reveal', (d) => { 
             document.getElementById('game-log').innerHTML += `<div style="padding: 2px 0;">${d.name}: ${d.hand.join(', ')} (${d.points} pts)</div>`; 
         });
-        socket.on('clear-game-logs', () => { 
-            document.getElementById('game-log').innerHTML = ""; 
-        });
+        socket.on('clear-game-logs', () => { document.getElementById('game-log').innerHTML = ""; });
         socket.on('game-reset-broadcast', () => { localStorage.clear(); location.reload(); });
 
         function checkForMatches() {
@@ -201,7 +211,7 @@
         function renderHand() {
             const container = document.getElementById('my-hand'); container.innerHTML = '';
             const outBtn = document.getElementById('out-btn');
-            if (checkForMatches()) outBtn.classList.add('pulse'); else outBtn.classList.remove('pulse');
+            if (checkForMatches() && !roundOver) outBtn.classList.add('pulse'); else outBtn.classList.remove('pulse');
 
             myHand.forEach((card, i) => {
                 const div = document.createElement('div');
@@ -237,12 +247,10 @@
         
         function submitFinalScore() { 
             const pts = calculateScore(); 
-            // RESTORED: Emit the broadcast-hand event before submitting the score
             socket.emit('broadcast-hand', {name:myName, hand:myHand, points:pts}); 
             socket.emit('submit-score', {name:myName, points:pts}); 
             document.getElementById('submit-btn').style.display='none'; 
         }
-        
         function triggerOut() { socket.emit('trigger-out', myName); }
     </script>
 </body>

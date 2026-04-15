@@ -3,11 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Threes - OSU Edition</title>
+    <title>Threes - Varsity Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Graduate&display=swap" rel="stylesheet">
+    
     <style>
-        /* OSU Colors: Scarlet (#BB0000) and Gray (#666666) */
+        @keyframes letterBounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-30px); }
+            60% { transform: translateY(-15px); }
+        }
+
         body { 
-            font-family: 'Segoe UI', Helvetica, Arial, sans-serif; 
+            /* Applied the Graduate font here */
+            font-family: 'Graduate', 'Segoe UI', serif; 
             background: #e0e0e0; 
             color: #333; 
             margin: 0; 
@@ -17,66 +25,84 @@
             overflow: hidden; 
         }
         
-        /* Splash Screen */
         #splash-screen { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: #BB0000; display: flex; flex-direction: column; 
             align-items: center; justify-content: center; z-index: 100; color: white; 
         }
+
+        .splash-title span {
+            display: inline-block;
+            animation: letterBounce 1s ease;
+            animation-iteration-count: 2;
+        }
+        .splash-title span:nth-child(1) { animation-delay: 0.0s; }
+        .splash-title span:nth-child(2) { animation-delay: 0.1s; }
+        .splash-title span:nth-child(3) { animation-delay: 0.2s; }
+        .splash-title span:nth-child(4) { animation-delay: 0.3s; }
+        .splash-title span:nth-child(5) { animation-delay: 0.4s; }
+        .splash-title span:nth-child(6) { animation-delay: 0.5s; }
+
         .osu-btn-large { 
+            font-family: 'Graduate', serif;
             background: #666666; color: white; padding: 15px 40px; 
             font-size: 1.5rem; border: 2px solid white; border-radius: 5px; 
-            cursor: pointer; font-weight: bold; 
+            cursor: pointer; font-weight: bold; margin-top: 30px;
         }
 
-        /* Header */
         header { 
             background: #BB0000; color: white; padding: 10px; 
             text-align: center; border-bottom: 4px solid #666666; 
         }
         #round-info { font-weight: bold; font-size: 1.2rem; display: block; }
-        #turn-msg { font-size: 1rem; color: #f1c40f; margin-top: 4px; font-weight: bold; }
+        
+        #turn-msg { 
+            font-size: 1.1rem; color: #f1c40f; margin-top: 4px; 
+            font-weight: bold; min-height: 1.2rem;
+        }
+        #turn-msg span {
+            display: inline-block;
+            animation: letterBounce 1.2s ease infinite;
+        }
+        /* Staggered delays for the name bounce wave */
+        #turn-msg span:nth-child(n) { animation-delay: calc(0.05s * var(--i)); }
 
-        /* Main Game Area */
         #play-area { 
             flex: 1; overflow-y: auto; padding: 15px; 
             display: flex; flex-direction: column; align-items: center; 
         }
-        
         .discard-pile { 
             background: white; border: 4px solid #666666; border-radius: 10px; 
             width: 85px; height: 115px; display: flex; align-items: center; 
             justify-content: center; font-size: 2.8rem; font-weight: bold; 
             margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); 
         }
-        
         .hand { 
             display: flex; flex-wrap: wrap; justify-content: center; 
             gap: 6px; margin: 15px 0; min-height: 120px; width: 100%;
         }
         .card { 
+            font-family: sans-serif; /* Keep card numbers standard for readability */
             background: white; color: black; padding: 12px 6px; 
             border-radius: 6px; font-weight: bold; font-size: 1.1rem; 
             min-width: 45px; text-align: center; border: 1px solid #999; 
             box-shadow: 2px 2px 5px rgba(0,0,0,0.1); cursor: pointer;
         }
         .card.selected-points { border: 3px solid #BB0000; background: #ffcccc; transform: translateY(-5px); }
-
-        /* Controls */
+        
         .controls-grid { 
             width: 100%; max-width: 450px; display: grid; 
             grid-template-columns: 1fr 1fr; gap: 10px; 
         }
         button { 
+            font-family: 'Graduate', serif;
             padding: 14px; font-weight: bold; border-radius: 6px; 
             border: none; cursor: pointer; text-transform: uppercase; 
         }
         .btn-scarlet { background: #BB0000; color: white; }
         .btn-gray { background: #666666; color: white; }
         button:disabled { opacity: 0.3; background: #999 !important; }
-        .full-width { grid-column: span 2; }
 
-        /* Footer Status Bar */
         footer { 
             background: #333; color: white; padding: 12px; 
             border-top: 4px solid #BB0000; 
@@ -86,6 +112,7 @@
             justify-content: center; align-items: center;
         }
         .player-tag { 
+            font-family: 'Graduate', serif;
             background: #555; padding: 6px 14px; border-radius: 20px; 
             font-size: 0.85rem; white-space: nowrap; border: 1px solid transparent; 
         }
@@ -98,8 +125,10 @@
 <body>
 
     <div id="splash-screen">
-        <h1 style="font-size: 4.5rem; margin: 0;">THREES</h1>
-        <p style="margin-bottom: 30px; letter-spacing: 3px; font-weight: bold;">BIG JON GAMES</p>
+        <h1 class="splash-title" style="font-size: 4.5rem; margin: 0;">
+            <span>T</span><span>H</span><span>R</span><span>E</span><span>E</span><span>S</span>
+        </h1>
+        <p style="letter-spacing: 3px; font-weight: bold;">BIG JON GAMES</p>
         <button class="osu-btn-large" onclick="startGame()">ENTER GAME</button>
     </div>
 
@@ -110,22 +139,17 @@
         </header>
 
         <main id="play-area">
-            <button class="btn-gray full-width" style="margin-bottom:15px; border: 1px solid white;" onclick="startNextRound()">DEAL CARDS</button>
-            
+            <button class="btn-gray full-width" style="grid-column: span 2; margin-bottom:15px; border: 1px solid white;" onclick="startNextRound()">DEAL CARDS</button>
             <div class="discard-pile" id="last-card">--</div>
-
             <div class="controls-grid">
                 <button id="draw-btn" class="btn-scarlet" onclick="drawFromDeck()">DRAW</button>
                 <button id="pickup-btn" class="btn-gray" onclick="pickUpDiscard()">TAKE</button>
             </div>
-
             <div class="hand" id="my-hand"></div>
-
             <div class="controls-grid">
-                <button id="out-btn" class="btn-scarlet full-width" onclick="triggerOut()">I'M GOING OUT</button>
-                <button id="end-btn" class="btn-gray full-width" style="display:none; border: 2px solid #BB0000;" onclick="submitFinalScore()">SUBMIT SCORE</button>
+                <button id="out-btn" class="btn-scarlet" style="grid-column: span 2;" onclick="triggerOut()">I'M GOING OUT</button>
+                <button id="end-btn" class="btn-gray" style="grid-column: span 2; display:none; border: 2px solid #BB0000;" onclick="submitFinalScore()">SUBMIT SCORE</button>
             </div>
-            
             <p id="log" style="font-size:0.75rem; color:#666; margin-top:15px; font-style: italic;"></p>
         </main>
 
@@ -146,12 +170,12 @@
             socket.emit('join-game', myName);
         }
 
-        // DECK LOGIC
+        // Logic for Deck, Dealing, and Scoring stays the same
         function createDeck() {
             const suits = ['♥', '♦', '♣', '♠'];
             const values = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
             let deck = [];
-            for(let i=0; i<2; i++) { // Double deck for big rounds
+            for(let i=0; i<2; i++) {
                 suits.forEach(s => values.forEach(v => deck.push(v + s)));
             }
             return deck.sort(() => Math.random() - 0.5);
@@ -162,17 +186,13 @@
             myHand = [];
             let deck = createDeck();
             for(let i=0; i < cardsThisRound; i++) myHand.push(deck.pop());
-            
             document.getElementById('round-info').innerText = `ROUND: ${cardsThisRound} CARDS (Wild: ${cardsThisRound}s)`;
             renderHand();
-            
-            // WAKE UP THE SERVER
             socket.emit('start-game-rotation');
         }
 
         function drawFromDeck() {
             if(!isMyTurn) return;
-            // Simulated draw (In real app, deck would be server-side, but for now we pull from local)
             const deck = createDeck();
             myHand.push(deck.pop());
             renderHand();
@@ -238,7 +258,7 @@
                 let v = card.replace(/[♥♦♣♠]/, '');
                 if (v === 'A') pts += 1;
                 else if (['J','Q','K'].includes(v)) pts += 10;
-                else if (parseInt(v) === cardsThisRound) pts += 1; // Wild
+                else if (parseInt(v) === cardsThisRound) pts += 1; 
                 else pts += parseInt(v);
             });
             totalScore += pts;
@@ -249,7 +269,6 @@
             pointsToSubmit = [];
         }
 
-        // SOCKET EVENTS
         socket.on('update-players', (players) => {
             const list = document.getElementById('player-list');
             list.innerHTML = '';
@@ -269,7 +288,16 @@
             const activeTag = document.getElementById('tag-' + data.activePlayer);
             if(activeTag) activeTag.classList.add('active');
 
-            document.getElementById('turn-msg').innerText = isMyTurn ? "YOUR TURN!" : data.activePlayer.toUpperCase() + "'S TURN";
+            const nameMsgBox = document.getElementById('turn-msg');
+            let nameToDisplay = isMyTurn ? "YOUR TURN!" : data.activePlayer.toUpperCase() + "'S TURN";
+            
+            nameMsgBox.innerHTML = ''; 
+            nameToDisplay.split('').forEach((char, index) => {
+                const charSpan = document.createElement('span');
+                charSpan.innerHTML = (char === ' ') ? '&nbsp;' : char;
+                charSpan.style.setProperty('--i', index); // Set custom variable for stagger
+                nameMsgBox.appendChild(charSpan);
+            });
 
             document.getElementById('draw-btn').disabled = !isMyTurn;
             document.getElementById('pickup-btn').disabled = (!isMyTurn || currentDiscard === "---");

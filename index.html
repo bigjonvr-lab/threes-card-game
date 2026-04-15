@@ -97,13 +97,28 @@
 
         socket.on('game-reset-broadcast', () => { location.reload(); });
         socket.on('trigger-card-request', () => { if (myName) socket.emit('request-cards', myName); });
+        
+        socket.on('clear-game-logs', () => { document.getElementById('game-log').innerHTML = ""; });
 
         socket.on('update-lobby', (players) => {
             const list = document.getElementById('lobby-list'), scores = document.getElementById('score-body');
             list.innerHTML = ''; scores.innerHTML = '';
+            
+            // Find the minimum score (first place)
+            const validScores = players.filter(p => p.score > 0).map(p => p.score);
+            const minScore = validScores.length > 0 ? Math.min(...validScores) : null;
+            
             const sorted = [...players].sort((a, b) => a.score - b.score);
-            players.forEach(p => { list.innerHTML += `<div style="display:flex; justify-content:space-between; padding:5px; border-bottom:1px solid #eee;"><span>${p.name}</span><span>${p.ready?'READY':'...'}</span></div>`; });
-            sorted.forEach((p, index) => { scores.innerHTML += `<tr><td>${index===0&&p.score>0?'👑':''}${p.name}</td><td style="text-align:right;">${p.score}</td></tr>`; });
+            players.forEach(p => { 
+                list.innerHTML += `<div style="display:flex; justify-content:space-between; padding:5px; border-bottom:1px solid #eee;"><span>${p.name}</span><span>${p.ready?'READY':'...'}</span></div>`; 
+            });
+            
+            sorted.forEach((p) => { 
+                // Add star if score matches the lowest non-zero score
+                const star = (minScore !== null && p.score === minScore) ? ' ⭐' : '';
+                scores.innerHTML += `<tr><td>${p.name}${star}</td><td style="text-align:right;">${p.score}</td></tr>`; 
+            });
+            
             if (players[0] && players[0].name === myName) {
                 document.getElementById('host-reset-btn').style.display = 'block';
                 if (roundOver) document.getElementById('next-rd-btn').style.display = 'block';

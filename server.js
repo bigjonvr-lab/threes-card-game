@@ -21,11 +21,10 @@ io.on('connection', (socket) => {
     socket.emit('room-list', getActiveRooms());
 
     socket.on('join-room', (data) => {
-        const { roomId, name } = data;
-        const rid = roomId.toUpperCase();
+        const rid = data.roomId.toUpperCase();
         socket.join(rid);
         socket.roomId = rid;
-        socket.playerName = name;
+        socket.playerName = data.name;
 
         if (!rooms[rid]) {
             rooms[rid] = {
@@ -36,8 +35,8 @@ io.on('connection', (socket) => {
         }
 
         let r = rooms[rid];
-        if (!r.players.find(p => p.name === name)) {
-            r.players.push({ name, score: 0, ready: false, hand: [] });
+        if (!r.players.find(p => p.name === data.name)) {
+            r.players.push({ name: data.name, score: 0, ready: false, hand: [] });
         }
 
         io.to(rid).emit('update-lobby', r.players);
@@ -47,6 +46,7 @@ io.on('connection', (socket) => {
             socket.emit('game-transition');
             socket.emit('sync-round', r.round);
             socket.emit('update-discard', r.discard);
+            socket.emit('trigger-card-request');
             io.to(rid).emit('update-turn', { activePlayer: r.players[r.activeIdx].name, isEnding: r.isEnding });
         }
     });
@@ -78,6 +78,14 @@ io.on('connection', (socket) => {
         nextTurn(socket.roomId);
     });
 
+    socket.on('request-cards', (name) => {
+        let r = rooms[socket.roomId];
+        if(r) {
+            const p = r.players.find(player => player.name === name);
+            if (p) socket.emit('receive-hand-' + p.name, p.hand);
+        }
+    });
+
     socket.on('trigger-out', (name) => {
         let r = rooms[socket.roomId];
         if(!r) return;
@@ -85,14 +93,6 @@ io.on('connection', (socket) => {
         r.outPlayer = name;
         io.to(socket.roomId).emit('going-out-alert', name);
         nextTurn(socket.roomId);
-    });
-
-    socket.on('request-cards', (name) => {
-        let r = rooms[socket.roomId];
-        if(r) {
-            const p = r.players.find(player => player.name === name);
-            if (p) socket.emit('receive-hand-' + p.name, p.hand);
-        }
     });
 
     socket.on('submit-score', (data) => {
@@ -139,6 +139,7 @@ function initGame(roomId) {
     }
     r.deck.sort(() => Math.random() - 0.5);
     
+    // Distribute cards to each player's data on server
     r.players.forEach(p => {
         p.hand = [];
         for (let i = 0; i < r.round; i++) {
@@ -147,6 +148,7 @@ function initGame(roomId) {
     });
 
     io.to(roomId).emit('shuffle-transition');
+    
     setTimeout(() => {
         r.discard = r.deck.pop();
         io.to(roomId).emit('sync-round', r.round);

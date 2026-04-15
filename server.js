@@ -2,55 +2,134 @@ const express = require('express');
 const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
+const path = require('path');
 
 let rooms = {};
 
-// Helper to check if a group of cards is a Set (3 of a kind) or Run (Sequence)
-function isMeld(cards) {
-    if (cards.length < 3) return false;
-    
-    const values = cards.map(c => c.replace(/[♥♦♣♠]/, ''));
-    const suits = cards.map(c => c.slice(-1));
+// --- GAME LOGIC UTILITIES ---
 
-    // Check Set: All values same
-    if (values.every(v => v === values[0])) return true;
-
-    // Check Run: Same suit + consecutive numbers
-    if (suits.every(s => s === suits[0])) {
-        const order = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
-        let indices = values.map(v => order.indexOf(v)).sort((a, b) => a - b);
-        for (let i = 0; i < indices.length - 1; i++) {
-            if (indices[i+1] !== indices[i] + 1) return false;
-        }
-        return true;
-    }
-    return false;
+function createDeck() {
+    const suits = ['♥', '♦', '♣', '♠'];
+    const values = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+    let deck = [];
+    for(let i=0; i<2; i++) suits.forEach(s => values.forEach(v => deck.push(v + s)));
+    return deck.sort(() => Math.random() - 0.5);
 }
 
+function getVal(card) {
+    let v = card.replace(/[♥♦♣♠]/, '');
+    if (v === 'A') return 1;
+    if (['J','Q','K'].includes(v)) return 10;
+    return parseInt(v) || 0;
+}
+
+// Check if a hand is "Out" (Simple version: hand is mostly melded)
+function canGoOut(hand) {
+    // This is a placeholder for complex meld logic
+    // For now, if AI has less than 5 points, it "Goes Out"
+    let score = hand.reduce((sum, c) => sum + getVal(c), 0);
+    return score < 7;
+}
+
+// --- SOCKET CONNECTION ---
+
 io.on('connection', (socket) => {
+    
     socket.on('join-room', (data) => {
         const { room, name } = data;
         socket.join(room);
         if (!rooms[room]) {
-            rooms[room] = { players: [], turnIndex: 0, cardsInHand: 3, discard: "---", deck: [] };
+            rooms[room] = { players: [], turnIndex: 0, cardsInHand: 3, discard: "---", deck: [], roundEnding: false };
         }
         rooms[room].players.push({ id: socket.id, name, hand: [], score: 0, ready: false, isAI: false });
         io.to(room).emit('update-lobby', rooms[room].players);
     });
 
     socket.on('add-ai', (room) => {
-        const aiName = "CPU_" + Math.floor(Math.random()*99);
-        rooms[room].players.push({ id: 'ai-'+Date.now(), name: aiName, hand: [], score: 0, ready: true, isAI: true });
+        if (!rooms[room]) return;
+        const aiName = "CPU_" + (rooms[room].players.filter(p => p.isAI).length + 1);
+        rooms[room].players.push({ id: 'ai-' + Date.now(), name: aiName, hand: [], score: 0, ready: true, isAI: true });
         io.to(room).emit('update-lobby', rooms[room].players);
     });
 
-    socket.on('start-game-rotation', (room) => {
+    socket.on('start-game', (room) => {
         const game = rooms[room];
-        // ... (Dealing logic similar to before, but checking melds for AI)
+        game.deck = createDeck();
+        game.discard = game.deck.pop();
+        game.roundEnding = false;
+        game.turnIndex = 0;
+
+        game.players.forEach(p => {
+            p.hand = [];
+            for(let i=0; i < game.cardsInHand; i++) p.hand.push(game.deck.pop());
+            if(!p.isAI) io.to(p.id).emit('receive-hand', p.hand);
+        });
+
+        io.to(room).emit('game-start', { cards: game.cardsInHand, discard: game.discard });
+        sendTurnUpdate(room);
     });
-    
-    // Logic for AI to decide if it can "Go Out"
-    // (In a meld game, the AI would check if its hand can be partitioned into isMeld() groups)
+
+    function sendTurnUpdate(room) {
+        const game = rooms[room];
+        const activePlayer = game.players[game.turnIndex];
+        io.to(room).emit('update-turn', { activePlayer: activePlayer.name, isEnding: game.roundEnding });
+
+        if (activePlayer.isAI && !game.roundEnding) {
+            setTimeout(() => runAITurn(room), 1500);
+        }
+    }
+
+    function runAITurn(room) {
+        const game = rooms[room];
+        const ai = game.players[game.turnIndex];
+        
+        // AI Logic: Draw from deck
+        ai.hand.push(game.deck.pop());
+        
+        // AI Logic: Discard highest card
+        ai.hand.sort((a, b) => getVal(b) - getVal(a));
+        const discard = ai.hand.shift();
+        game.discard = discard;
+        
+        io.to(room).emit('update-discard', discard);
+        
+        // Check if AI wants to "Go Out"
+        if (canGoOut(ai.hand)) {
+            game.roundEnding = true;
+            io.to(room).emit('log-action', `${ai.name} is GOING OUT!`);
+        }
+
+        game.turnIndex = (game.turnIndex + 1) % game.players.length;
+        
+        if (game.roundEnding && game.turnIndex === 0) {
+            io.to(room).emit('force-score-view');
+        } else {
+            sendTurnUpdate(room);
+        }
+    }
+
+    socket.on('play-card', (data) => {
+        const { room, card, name } = data;
+        const game = rooms[room];
+        game.discard = card;
+        io.to(room).emit('update-discard', card);
+        
+        game.turnIndex = (game.turnIndex + 1) % game.players.length;
+        if (game.roundEnding && game.turnIndex === 0) {
+            io.to(room).emit('force-score-view');
+        } else {
+            sendTurnUpdate(room);
+        }
+    });
+
+    socket.on('submit-score', (data) => {
+        const game = rooms[data.room];
+        const p = game.players.find(p => p.name === data.name);
+        if(p) p.score += data.points;
+        io.to(data.room).emit('update-lobby', game.players);
+        io.to(data.room).emit('show-next-deal-btn');
+    });
 });
 
-http.listen(3000, () => console.log("Multi-room Meld Server live."));
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+http.listen(3000, () => console.log('Varsity Threes Multi-Room live on 3000'));

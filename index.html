@@ -5,235 +5,118 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Threes - Big Jon Games</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #1a1a2e; color: white; margin: 0; }
-        #splash-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0f3460; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
-        .logo-text { font-size: 5rem; font-weight: bold; color: #e94560; text-shadow: 4px 4px #16213e; margin: 0; }
-        #game-table { display: none; padding: 15px; }
-        .game-box { max-width: 600px; margin: 0 auto; background: #16213e; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        
+        /* Layout Container */
+        #main-container { display: flex; flex: 1; overflow: hidden; }
+
+        /* Sidebar Style */
+        #sidebar { width: 180px; background: #0f3460; border-right: 2px solid #e94560; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .player-item { padding: 10px; border-radius: 8px; background: #16213e; border: 1px solid transparent; transition: 0.3s; position: relative; font-weight: bold; }
+        .player-item.active-turn { border-color: #f1c40f; box-shadow: 0 0 10px rgba(241, 196, 15, 0.4); background: #1a1a2e; }
+        .turn-pointer { display: none; color: #f1c40f; margin-right: 5px; }
+        .active-turn .turn-pointer { display: inline; }
+
+        /* Game Area Style */
+        #game-table { flex: 1; padding: 20px; overflow-y: auto; }
+        .game-box { max-width: 600px; margin: 0 auto; background: #16213e; padding: 20px; border-radius: 20px; }
+        
+        /* Buttons & Cards */
         .discard-area { background: #0f3460; padding: 15px; border-radius: 15px; margin: 15px 0; border: 3px solid #e94560; }
         #last-card { font-size: 4rem; font-weight: bold; height: 90px; display: flex; align-items: center; justify-content: center; }
-        .hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 15px 0; min-height: 100px; }
-        .card { background: white; color: black; padding: 12px 8px; border-radius: 8px; font-weight: bold; font-size: 1.2rem; min-width: 45px; cursor: pointer; border: 2px solid #ccc; }
-        .card.selected-points { border: 4px solid #e94560; background: #ff7675; color: white; transform: scale(1.1); }
-        button { padding: 12px; margin: 5px; font-size: 1rem; font-weight: bold; border-radius: 8px; border: none; cursor: pointer; transition: 0.3s; }
-        button:disabled { background: #34495e !important; color: #7f8c8d !important; opacity: 0.5; }
+        .hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 15px 0; }
+        .card { background: white; color: black; padding: 12px 8px; border-radius: 8px; font-weight: bold; font-size: 1.2rem; min-width: 45px; cursor: pointer; }
+        .card.selected-points { border: 4px solid #e94560; background: #ff7675; color: white; }
+        
+        button { padding: 12px; margin: 5px; font-size: 1rem; font-weight: bold; border-radius: 8px; border: none; cursor: pointer; }
+        button:disabled { opacity: 0.3; cursor: not-allowed; }
         .deal-btn { background: #f1c40f; color: #1a1a2e; width: 100%; }
         .out-btn { background: #e94560; color: white; width: 100%; }
-        .end-btn { background: #8e44ad; color: white; width: 100%; display: none; border: 2px solid white; }
-        .scoreboard { background: #1a1a2e; padding: 10px; border-radius: 10px; margin-top: 15px; text-align: left; }
+        
+        #splash-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0f3460; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
     </style>
 </head>
 <body>
 
     <div id="splash-screen">
-        <h1 class="logo-text">THREES</h1>
-        <p style="color: #95a5a6; letter-spacing: 2px;">BIG JON GAMES</p>
-        <button onclick="startGame()" style="background:#e94560; color:white; width:200px; font-size:1.5rem;">ENTER</button>
+        <h1 style="font-size: 5rem; color: #e94560; margin: 0;">THREES</h1>
+        <p style="color: #95a5a6;">BIG JON GAMES</p>
+        <button onclick="startGame()" style="background:#e94560; color:white; width:200px;">ENTER</button>
     </div>
 
-    <div id="game-table">
-        <div class="game-box">
-            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                <span id="player-display" style="font-weight:bold;">---</span>
-                <span id="round-info" style="color:#f1c40f; font-weight:bold;">Round: 3 Cards (Wild: 3s)</span>
+    <div id="main-container">
+        <div id="sidebar">
+            <h3 style="margin-top:0; font-size: 1rem; color: #95a5a6;">PLAYERS</h3>
+            <div id="player-list">
+                </div>
+        </div>
+
+        <div id="game-table">
+            <div class="game-box">
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                    <span id="player-display" style="font-weight:bold;">---</span>
+                    <span id="round-info" style="color:#f1c40f; font-weight:bold;">3 Cards</span>
+                </div>
+
+                <div class="discard-area"><div id="last-card">---</div></div>
+
+                <button class="deal-btn" id="deal-btn" onclick="startNextRound()">DEAL ROUND</button>
+                <div style="display: flex; justify-content: space-between;">
+                    <button id="draw-btn" style="background:#27ae60; color:white; width:48%;" onclick="drawFromDeck()">DRAW</button>
+                    <button id="pickup-btn" style="background:#00d2ff; color:black; width:48%;" onclick="pickUpDiscard()">TAKE</button>
+                </div>
+
+                <div class="hand" id="my-hand"></div>
+                <button id="out-btn" class="out-btn" onclick="triggerOut()">I'M GOING OUT</button>
+                <button id="end-btn" style="display:none; background:#8e44ad; color:white; width:100%;" onclick="submitFinalScore()">SUBMIT SCORE</button>
+
+                <p id="log" style="font-size:0.75rem; color:#95a5a6; margin-top:20px;"></p>
             </div>
-
-            <div class="discard-area"><div id="last-card">---</div></div>
-
-            <button class="deal-btn" id="deal-btn" onclick="startNextRound()">DEAL ROUND</button>
-            <div style="display: flex; justify-content: space-between;">
-                <button id="draw-btn" style="background:#27ae60; color:white; width:48%;" onclick="drawFromDeck()">DRAW</button>
-                <button id="pickup-btn" style="background:#00d2ff; color:black; width:48%;" onclick="pickUpDiscard()">TAKE</button>
-            </div>
-
-            <div class="hand" id="my-hand"></div>
-
-            <button id="out-btn" class="out-btn" onclick="triggerOut()">I'M GOING OUT (0 pts)</button>
-            <button id="end-btn" class="end-btn" onclick="submitFinalScore()">SUBMIT SCORE</button>
-
-            <div class="scoreboard">
-                <h4 style="margin:0 0 5px 0;">Standings</h4>
-                <div id="scores-list"></div>
-            </div>
-            <p id="log" style="font-size:0.75rem; color:#95a5a6; margin-top:10px;"></p>
         </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        let myName = "", myHand = [], gameDeck = [], currentDiscard = "---";
-        let isMyTurn = false, isRoundEnding = false, pointsToSubmit = [];
-        let totalScore = 0;
-        let cardsThisRound = 3; 
+        let myName = "", myHand = [], currentDiscard = "---", isMyTurn = false;
+        let cardsThisRound = 3, pointsToSubmit = [], totalScore = 0;
 
         function startGame() {
-            myName = prompt("Enter name:") || "Player";
+            myName = prompt("Enter your name:") || "Player";
             document.getElementById('player-display').innerText = myName;
             document.getElementById('splash-screen').style.display = 'none';
-            document.getElementById('game-table').style.display = 'block';
             socket.emit('join-game', myName);
         }
 
-        function createDeck() {
-            const suits = ['♥', '♦', '♣', '♠'];
-            const values = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
-            let deck = [];
-            for(let i=0; i<2; i++) {
-                suits.forEach(s => values.forEach(v => deck.push(v + s)));
-            }
-            return deck.sort(() => Math.random() - 0.5);
-        }
-
-        function getWildName(num) {
-            if (num <= 10) return num + "s";
-            if (num === 11) return "Jacks";
-            if (num === 12) return "Queens";
-            if (num === 13) return "Kings";
-            return num;
-        }
-
-        function startNextRound() {
-            if (cardsThisRound > 13) {
-                alert("Game is finished! Refresh to start over.");
-                return;
-            }
-            myHand = [];
-            gameDeck = createDeck();
-            for(let i=0; i < cardsThisRound; i++) {
-                myHand.push(gameDeck.pop());
-            }
-            document.getElementById('round-info').innerText = "Round: " + cardsThisRound + " Cards (Wild: " + getWildName(cardsThisRound) + ")";
-            renderHand();
-            socket.emit('log-action', myName + " dealt the " + cardsThisRound + " card round.");
-        }
-
-        function drawFromDeck() {
-            if(!isMyTurn) return;
-            if(gameDeck.length === 0) gameDeck = createDeck();
-            myHand.push(gameDeck.pop());
-            renderHand();
-            document.getElementById('draw-btn').disabled = true;
-            document.getElementById('pickup-btn').disabled = true;
-        }
-
-        function pickUpDiscard() {
-            if(!isMyTurn || currentDiscard === "---") return;
-            myHand.push(currentDiscard);
-            renderHand();
-            socket.emit('play-card', {player: "System", card: "---"});
-            document.getElementById('draw-btn').disabled = true;
-            document.getElementById('pickup-btn').disabled = true;
-        }
-
-        function renderHand() {
-            const container = document.getElementById('my-hand');
-            container.innerHTML = '';
-            myHand.forEach((card, i) => {
+        // Updated player list rendering
+        socket.on('update-players', (players) => {
+            const list = document.getElementById('player-list');
+            list.innerHTML = '';
+            players.forEach(p => {
                 const div = document.createElement('div');
-                div.className = 'card';
-                if(card.includes('♥') || card.includes('♦')) div.style.color = 'red';
-                div.innerText = card;
-                div.onclick = () => {
-                    if (isMyTurn) discard(i);
-                    else if (isRoundEnding) {
-                        div.classList.toggle('selected-points');
-                        togglePointCard(card);
-                    }
-                };
-                container.appendChild(div);
+                div.id = 'player-' + p.name;
+                div.className = 'player-item';
+                div.innerHTML = `<span class="turn-pointer">➔</span> ${p.name}`;
+                list.appendChild(div);
             });
-        }
+        });
 
-        function togglePointCard(card) {
-            const idx = pointsToSubmit.indexOf(card);
-            if(idx > -1) pointsToSubmit.splice(idx, 1);
-            else pointsToSubmit.push(card);
-        }
-
-        function discard(i) {
-            const card = myHand[i];
-            myHand.splice(i, 1);
-            renderHand();
-            socket.emit('play-card', {player: myName, card: card});
-        }
-
-        function triggerOut() {
-            if(!isMyTurn) return;
-            if(confirm("Going out? You'll get 0 points.")) {
-                socket.emit('trigger-out', myName);
-                totalScore += 0;
-                socket.emit('submit-score', {name: myName, score: totalScore});
-                discard(0); 
-            }
-        }
-
-        function submitFinalScore() {
-            let pts = 0;
-            pointsToSubmit.forEach(card => {
-                let valStr = card.replace(/[♥♦♣♠]/, '');
-                let valNum = 0;
-                
-                // Value mapping for logic
-                if (valStr === 'A') valNum = 1;
-                else if (valStr === 'J') valNum = 11;
-                else if (valStr === 'Q') valNum = 12;
-                else if (valStr === 'K') valNum = 13;
-                else valNum = parseInt(valStr);
-
-                // Wild check: If the card value matches the round card count, it's 1 pt
-                if (valNum === cardsThisRound) {
-                    pts += 1;
-                } else if (valNum === 1) {
-                    pts += 1; // Aces are always 1
-                } else if (valNum >= 11) {
-                    pts += 10; // Unmatched face cards are 10
-                } else {
-                    pts += valNum; // Regular numbers
-                }
-            });
-
-            totalScore += pts;
-            socket.emit('submit-score', {name: myName, score: totalScore});
-            alert("Points added: " + pts);
-            
-            document.getElementById('end-btn').style.display = 'none';
-            pointsToSubmit = [];
-            
-            cardsThisRound++; 
-            if(cardsThisRound > 13) {
-                document.getElementById('round-info').innerText = "GAME OVER";
-                document.getElementById('deal-btn').disabled = true;
-                socket.emit('log-action', "The final round is complete! Check the winner!");
-            } else {
-                document.getElementById('round-info').innerText = "Next Round: " + cardsThisRound + " Cards (Wild: " + getWildName(cardsThisRound) + ")";
-            }
-        }
-
+        // Highlight the current player in the sidebar
         socket.on('update-turn', (data) => {
             isMyTurn = (data.activePlayer === myName);
-            isRoundEnding = data.isEnding;
-            document.getElementById('turn-msg').innerText = isMyTurn ? "YOUR TURN" : data.activePlayer + "'s Turn";
+            
+            // UI Update for sidebar
+            document.querySelectorAll('.player-item').forEach(el => el.classList.remove('active-turn'));
+            const activeEl = document.getElementById('player-' + data.activePlayer);
+            if(activeEl) activeEl.classList.add('active-turn');
+
+            // Button Control
             document.getElementById('draw-btn').disabled = !isMyTurn;
-            document.getElementById('pickup-btn').disabled = !isMyTurn;
+            document.getElementById('pickup-btn').disabled = (!isMyTurn || currentDiscard === "---");
             document.getElementById('out-btn').disabled = !isMyTurn;
-            if (isRoundEnding) document.getElementById('end-btn').style.display = 'block';
         });
 
-        socket.on('submit-score', (data) => {
-            const list = document.getElementById('scores-list');
-            let el = document.getElementById('s-' + data.name);
-            if(!el) { el = document.createElement('div'); el.id = 's-'+data.name; list.appendChild(el); }
-            el.innerHTML = `<small>${data.name}: <b>${data.score}</b></small>`;
-        });
-
-        socket.on('update-discard', (card) => {
-            currentDiscard = card;
-            document.getElementById('last-card').innerText = card;
-            document.getElementById('last-card').style.color = (card.includes('♥') || card.includes('♦')) ? 'red' : 'white';
-        });
-
-        socket.on('log-action', (msg) => document.getElementById('log').innerText = msg);
+        // [Keep your previous functions for drawFromDeck, startNextRound, discard, etc.]
     </script>
 </body>
 </html>

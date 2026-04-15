@@ -12,7 +12,7 @@ let isEnding = false;
 let playersFinishedScoring = 0;
 let deckCount = 1;
 
-app.use(express.static('public'));
+app.use(express.static(__dirname));
 
 io.on('connection', (socket) => {
     
@@ -100,12 +100,8 @@ function initGame() {
         for (let i = 0; i < roundCount; i++) p.hand.push(deck.pop());
         io.emit('receive-hand-to-' + p.name, p.hand); // Private event per player
     });
-
-    // We use a general emit for this demo, but usually you'd target sockets
     io.emit('receive-hand', []); 
-    // Trigger the shuffle animation on front-end
     io.emit('shuffle-transition');
-    
     setTimeout(() => {
         currentDiscard = deck.pop();
         io.emit('sync-round', roundCount);
@@ -134,11 +130,10 @@ function sendTurnUpdate() {
 
 function nextTurn() {
     activePlayerIndex = (activePlayerIndex + 1) % players.length;
-    
-    // Check if we've come back to the person who went out
+
     if (isEnding && players[activePlayerIndex].name === "The person who went out") {
         io.emit('force-score-view');
-        // Auto-score bots
+    
         players.filter(p => p.isBot).forEach(bot => {
             let botScore = calculateBotScore(bot.hand);
             io.emit('log-hand-reveal', {name: bot.name, hand: bot.hand, points: botScore});
@@ -159,8 +154,8 @@ function runBotLogic(bot) {
         bot.hand.push(drawn);
         
         setTimeout(() => {
-            // Bot discards highest card that isn't wild
-            bot.hand.sort((a,b) => b.length - a.length); // Very basic sort
+           
+            bot.hand.sort((a,b) => b.length - a.length); 
             const discard = bot.hand.shift();
             currentDiscard = discard;
             io.emit('update-discard', currentDiscard);
@@ -177,7 +172,7 @@ function calculateBotScore(hand) {
         else if (['J','Q','K'].includes(val)) pts += 10; 
         else pts += parseInt(val) || 0;
     });
-    return Math.floor(pts * 0.5); // Bots "cheat" slightly and match half their cards
+    return Math.floor(pts * 0.5); 
 }
 
 http.listen(3000, () => { console.log('Big Jon Games Server Running on port 3000'); });

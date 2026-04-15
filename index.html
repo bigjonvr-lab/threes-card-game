@@ -8,33 +8,12 @@
     <style>
         body { font-family: 'Graduate', serif; background: #e0e0e0; margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         
-        /* THE FIXED LOGO ANIMATION */
+        /* STATIC SPLASH SCREEN */
         #splash-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #BB0000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; color: white; text-align: center; }
-        .funny-logo { font-size: 1.8rem; font-weight: bold; opacity: 0; animation: fIn 0.5s forwards; display: flex; align-items: center; justify-content: center; gap: 4px; }
-        
-        .squish-h { display: inline-block; animation: sq 0.2s forwards 2.3s; transform-origin: center bottom; position: relative; width: 20px; }
-        
-        /* The O now lands and STAYS */
-        .hero-o { 
-            display: inline-block; 
-            position: absolute; 
-            left: 0; 
-            color: #666; 
-            opacity: 0; 
-            animation: bO 1.5s ease-out 1.0s forwards, hO 0.3s ease-in-out 2s infinite alternate, cO 0.2s cubic-bezier(0.6, -0.28, 0.735, 0.045) 2.3s forwards; 
-        }
+        .logo-text { font-size: 1.8rem; font-weight: bold; letter-spacing: 2px; margin-bottom: 10px; }
+        .game-title { font-size: 4rem; margin: 0 0 30px 0; }
 
-        @keyframes fIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes sq { 0% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(0.1); opacity: 0; width: 0; } }
-        @keyframes bO { 0% { opacity: 0; transform: translate(150px, -150px); } 15% { opacity: 1; transform: translate(0, 0); } 100% { opacity: 1; transform: translateY(-30px); color: white; } }
-        @keyframes hO { from { transform: translateY(-30px); } to { transform: translateY(-35px); } }
-        @keyframes cO { 
-            0% { transform: translateY(-35px); } 
-            80% { transform: translateY(0); color: #f1c40f; scale: 1.3; } 
-            100% { transform: translateY(0); color: white; scale: 1; opacity: 1; } 
-        }
-
-        /* REST OF UI */
+        /* INTERFACE */
         #shuffle-view { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #e0e0e0; z-index: 900; display: none; align-items: center; justify-content: center; flex-direction: column; }
         .view-section { display: none; flex: 1; flex-direction: column; padding: 15px; }
         .active-view { display: flex; }
@@ -42,7 +21,7 @@
         footer { background: #333; color: white; padding: 10px; border-top: 4px solid #BB0000; min-height: 80px; }
         .discard-pile { background: white; border: 4px solid #666666; border-radius: 10px; width: 80px; height: 110px; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; margin-bottom: 15px; }
         .hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 20px; }
-        .card { font-family: sans-serif; background: white; padding: 12px 6px; border-radius: 6px; font-weight: bold; min-width: 45px; text-align: center; border: 1px solid #999; }
+        .card { font-family: sans-serif; background: white; padding: 12px 6px; border-radius: 6px; font-weight: bold; min-width: 45px; text-align: center; border: 1px solid #999; cursor: pointer; }
         button { font-family: 'Graduate', serif; padding: 14px; border-radius: 6px; border: none; font-weight: bold; text-transform: uppercase; cursor: pointer; }
         .btn-scarlet { background: #BB0000; color: white; }
         .btn-gray { background: #666666; color: white; }
@@ -52,18 +31,9 @@
 <body>
 
     <div id="splash-screen">
-        <div class="funny-logo">
-            <span>B</span><span>I</span><span>G</span><span>&nbsp;</span>
-            <span>J</span>
-            <span class="squish-h">
-                <span style="display:inline-block;">H</span>
-                <span class="hero-o">O</span>
-            </span>
-            <span>N</span>
-            <span>&nbsp;</span><span>G</span><span>A</span><span>M</span><span>E</span><span>S</span>
-        </div>
-        <h1 style="font-size: 3rem; opacity:0; animation: fIn 0.5s forwards 2.6s;">THREES</h1>
-        <button class="btn-gray" style="opacity:0; animation: fIn 0.5s forwards 2.9s;" onclick="login()">JOIN LOBBY</button>
+        <div class="logo-text">BIG JON GAMES</div>
+        <h1 class="game-title">THREES</h1>
+        <button class="btn-gray" onclick="login()">JOIN LOBBY</button>
     </div>
 
     <div id="shuffle-view">
@@ -129,7 +99,13 @@
             document.getElementById('out-btn').disabled = !isMyTurn || data.isEnding;
         });
 
-        socket.on('update-discard', (c) => { currentDiscard = c; document.getElementById('last-card').innerText = c; document.getElementById('last-card').style.color = (c.includes('♥') || c.includes('♦')) ? '#BB0000' : 'black'; });
+        socket.on('update-discard', (c) => { 
+            currentDiscard = c; 
+            const dc = document.getElementById('last-card');
+            dc.innerText = c; 
+            dc.style.color = (c.includes('♥') || c.includes('♦')) ? '#BB0000' : 'black'; 
+        });
+
         socket.on('force-score-view', () => document.getElementById('end-btn').style.display = 'block');
 
         function drawCard() {

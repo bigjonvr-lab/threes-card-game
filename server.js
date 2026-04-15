@@ -4,132 +4,97 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const path = require('path');
 
-let rooms = {};
+let players = [];
+let turnIndex = 0;
+let roundEnding = false;
+let stopperId = null;
+let cardsInHand = 3; 
 
-// --- GAME LOGIC UTILITIES ---
-
-function createDeck() {
+function createMasterDeck() {
     const suits = ['♥', '♦', '♣', '♠'];
     const values = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
     let deck = [];
-    for(let i=0; i<2; i++) suits.forEach(s => values.forEach(v => deck.push(v + s)));
+    for(let i=0; i<2; i++) {
+        suits.forEach(s => values.forEach(v => deck.push(v + s)));
+    }
     return deck.sort(() => Math.random() - 0.5);
 }
 
-function getVal(card) {
-    let v = card.replace(/[♥♦♣♠]/, '');
-    if (v === 'A') return 1;
-    if (['J','Q','K'].includes(v)) return 10;
-    return parseInt(v) || 0;
-}
-
-// Check if a hand is "Out" (Simple version: hand is mostly melded)
-function canGoOut(hand) {
-    // This is a placeholder for complex meld logic
-    // For now, if AI has less than 5 points, it "Goes Out"
-    let score = hand.reduce((sum, c) => sum + getVal(c), 0);
-    return score < 7;
-}
-
-// --- SOCKET CONNECTION ---
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 io.on('connection', (socket) => {
-    
-    socket.on('join-room', (data) => {
-        const { room, name } = data;
-        socket.join(room);
-        if (!rooms[room]) {
-            rooms[room] = { players: [], turnIndex: 0, cardsInHand: 3, discard: "---", deck: [], roundEnding: false };
-        }
-        rooms[room].players.push({ id: socket.id, name, hand: [], score: 0, ready: false, isAI: false });
-        io.to(room).emit('update-lobby', rooms[room].players);
+    socket.on('join-game', (name) => {
+        players.push({ id: socket.id, name: name, hand: [], score: 0, ready: false });
+        io.emit('update-lobby', players);
     });
 
-    socket.on('add-ai', (room) => {
-        if (!rooms[room]) return;
-        const aiName = "CPU_" + (rooms[room].players.filter(p => p.isAI).length + 1);
-        rooms[room].players.push({ id: 'ai-' + Date.now(), name: aiName, hand: [], score: 0, ready: true, isAI: true });
-        io.to(room).emit('update-lobby', rooms[room].players);
+    socket.on('player-ready', () => {
+        const p = players.find(p => p.id === socket.id);
+        if(p) p.ready = !p.ready;
+        io.emit('update-lobby', players);
     });
 
-    socket.on('start-game', (room) => {
-        const game = rooms[room];
-        game.deck = createDeck();
-        game.discard = game.deck.pop();
-        game.roundEnding = false;
-        game.turnIndex = 0;
-
-        game.players.forEach(p => {
-            p.hand = [];
-            for(let i=0; i < game.cardsInHand; i++) p.hand.push(game.deck.pop());
-            if(!p.isAI) io.to(p.id).emit('receive-hand', p.hand);
-        });
-
-        io.to(room).emit('game-start', { cards: game.cardsInHand, discard: game.discard });
-        sendTurnUpdate(room);
+    socket.on('start-game-rotation', () => {
+        io.emit('shuffle-transition'); 
+        setTimeout(() => {
+            let masterDeck = createMasterDeck();
+            players.forEach(p => {
+                p.hand = [];
+                for(let i=0; i < cardsInHand; i++) p.hand.push(masterDeck.pop());
+                io.to(p.id).emit('receive-hand', p.hand);
+            });
+            turnIndex = 0;
+            roundEnding = false;
+            stopperId = null;
+            io.emit('game-transition');
+            io.emit('sync-round', cardsInHand);
+            io.emit('update-turn', { activePlayer: players[turnIndex].name, isEnding: false });
+            io.emit('update-discard', "---");
+        }, 2000); 
     });
 
-    function sendTurnUpdate(room) {
-        const game = rooms[room];
-        const activePlayer = game.players[game.turnIndex];
-        io.to(room).emit('update-turn', { activePlayer: activePlayer.name, isEnding: game.roundEnding });
+    socket.on('next-round-setup', () => {
+        cardsInHand = (cardsInHand < 13) ? cardsInHand + 1 : 3;
+    });
 
-        if (activePlayer.isAI && !game.roundEnding) {
-            setTimeout(() => runAITurn(room), 1500);
-        }
-    }
-
-    function runAITurn(room) {
-        const game = rooms[room];
-        const ai = game.players[game.turnIndex];
+    socket.on('trigger-out', (name) => {
+        roundEnding = true;
+        stopperId = socket.id;
+        turnIndex = (turnIndex + 1) % players.length;
         
-        // AI Logic: Draw from deck
-        ai.hand.push(game.deck.pop());
-        
-        // AI Logic: Discard highest card
-        ai.hand.sort((a, b) => getVal(b) - getVal(a));
-        const discard = ai.hand.shift();
-        game.discard = discard;
-        
-        io.to(room).emit('update-discard', discard);
-        
-        // Check if AI wants to "Go Out"
-        if (canGoOut(ai.hand)) {
-            game.roundEnding = true;
-            io.to(room).emit('log-action', `${ai.name} is GOING OUT!`);
-        }
-
-        game.turnIndex = (game.turnIndex + 1) % game.players.length;
-        
-        if (game.roundEnding && game.turnIndex === 0) {
-            io.to(room).emit('force-score-view');
+        if (players[turnIndex].id === stopperId) {
+            io.emit('force-score-view');
         } else {
-            sendTurnUpdate(room);
+            io.emit('update-turn', { activePlayer: players[turnIndex].name, isEnding: true });
         }
-    }
+    });
 
     socket.on('play-card', (data) => {
-        const { room, card, name } = data;
-        const game = rooms[room];
-        game.discard = card;
-        io.to(room).emit('update-discard', card);
-        
-        game.turnIndex = (game.turnIndex + 1) % game.players.length;
-        if (game.roundEnding && game.turnIndex === 0) {
-            io.to(room).emit('force-score-view');
-        } else {
-            sendTurnUpdate(room);
+        io.emit('update-discard', data.card);
+        if (data.player !== "System") {
+            turnIndex = (turnIndex + 1) % players.length;
+            if (roundEnding && players[turnIndex].id === stopperId) {
+                io.emit('force-score-view');
+            } else {
+                io.emit('update-turn', { activePlayer: players[turnIndex].name, isEnding: roundEnding });
+            }
         }
     });
 
     socket.on('submit-score', (data) => {
-        const game = rooms[data.room];
-        const p = game.players.find(p => p.name === data.name);
-        if(p) p.score += data.points;
-        io.to(data.room).emit('update-lobby', game.players);
-        io.to(data.room).emit('show-next-deal-btn');
+        const p = players.find(p => p.name === data.name);
+        if(p) p.score += data.points; 
+        io.emit('update-lobby', players);
+        io.emit('show-next-deal-btn'); 
+    });
+
+    socket.on('disconnect', () => {
+        players = players.filter(p => p.id !== socket.id);
+        io.emit('update-lobby', players);
     });
 });
 
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
-http.listen(3000, () => console.log('Varsity Threes Multi-Room live on 3000'));
+const PORT = process.env.PORT || 3000;
+http.listen(PORT, () => console.log(`Server live on ${PORT}`));

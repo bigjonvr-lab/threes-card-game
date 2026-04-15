@@ -80,6 +80,7 @@ io.on('connection', (socket) => {
         if (roundCount > 13) roundCount = 1; 
         isEnding = false;
         playerWhoWentOut = "";
+        io.emit('clear-game-logs'); 
         initGame(); 
     });
 });

@@ -2,18 +2,34 @@ const express = require('express');
 const app = express();
 const http = require('http').Server(app);
 const io = require('socket.io')(http);
-const path = require('path'); // This helps the server find your folders
+const path = require('path');
+const fs = require('fs');
 
-// This tells the server to look inside the "public" folder for your game files
-app.use(express.static(path.join(__dirname, 'public')));
-
-// This is the "Safety Net" that forces the game to load when you go to the link
+// FORCED FILE FINDER (The Safety Net)
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    const locations = [
+        path.join(__dirname, 'public', 'index.html'),
+        path.join(__dirname, 'public', 'Index.html'),
+        path.join(__dirname, 'index.html'),
+        path.join(__dirname, 'Index.html')
+    ];
+    for (let loc of locations) {
+        if (fs.existsSync(loc)) { return res.sendFile(loc); }
+    }
+    res.status(404).send("Big Jon Games Error: index.html not found. Check your folder!");
 });
+app.use(express.static(__dirname + '/public'));
+app.use(express.static(__dirname));
+
+// GAME VARIABLES
 let players = [];
 let deck = [];
-app.use(express.static(__dirname + '/public'));
+let currentDiscard = "---";
+let activePlayerIndex = 0;
+let roundCount = 3; 
+let isEnding = false;
+let playersFinishedScoring = 0;
+let deckCount = 1;
 
 io.on('connection', (socket) => {
     socket.on('join-game', (name) => {
@@ -84,7 +100,6 @@ function initGame() {
     players.forEach(p => {
         p.hand = [];
         for (let i = 0; i < roundCount; i++) { if(deck.length > 0) p.hand.push(deck.pop()); }
-        // The private channel for dealing
         io.emit('receive-hand-' + p.name, p.hand);
     });
 
@@ -127,4 +142,4 @@ function runBotLogic(bot) {
     }, 1500);
 }
 
-http.listen(3000, () => { console.log('Server running on port 3000'); });
+http.listen(3000, () => { console.log('Big Jon Games Server Running on port 3000'); });

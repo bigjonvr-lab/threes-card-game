@@ -2,16 +2,17 @@ const express = require('express');
 const app = express();
 const http = require('http').Server(app);
 const io = require('socket.io')(http);
+const path = require('path'); // This helps the server find your folders
 
+// This tells the server to look inside the "public" folder for your game files
+app.use(express.static(path.join(__dirname, 'public')));
+
+// This is the "Safety Net" that forces the game to load when you go to the link
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 let players = [];
 let deck = [];
-let currentDiscard = "---";
-let activePlayerIndex = 0;
-let roundCount = 3; 
-let isEnding = false;
-let playersFinishedScoring = 0;
-let deckCount = 1;
-
 app.use(express.static(__dirname + '/public'));
 
 io.on('connection', (socket) => {

@@ -42,7 +42,7 @@ io.on('connection', (socket) => {
     socket.on('player-ready', () => {
         const p = gameState.players.find(p => p.name === socket.playerName);
         if (p) {
-            p.ready = !p.ready; // Toggle ready status
+            p.ready = !p.ready; 
             io.emit('update-lobby', gameState.players);
         }
     });
@@ -82,10 +82,16 @@ io.on('connection', (socket) => {
         }
     });
 
+    // RESTORED: Broadcast the hand and score to everyone
+    socket.on('broadcast-hand', (data) => { 
+        io.emit('log-hand-reveal', data); 
+    });
+
     socket.on('next-round-setup', () => {
         gameState.round = (gameState.round >= 13) ? 1 : gameState.round + 1;
         gameState.isEnding = false;
         gameState.outPlayer = "";
+        io.emit('clear-game-logs'); // RESTORED: Clear the log for the new round
         initGame();
     });
 

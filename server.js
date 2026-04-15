@@ -9,9 +9,7 @@ let turnIndex = 0;
 let roundEnding = false;
 let stopperId = null;
 let serverCardsThisRound = 3; 
-let gameStarted = false;
 
-// Helpers
 function createMasterDeck() {
     const suits = ['♥', '♦', '♣', '♠'];
     const values = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
@@ -27,49 +25,40 @@ app.get('/', (req, res) => {
 });
 
 io.on('connection', (socket) => {
+    // 1. Join the Lobby
     socket.on('join-game', (name) => {
         players.push({ id: socket.id, name: name, hand: [], score: 0, ready: false });
         io.emit('update-lobby', players);
     });
 
+    // 2. Toggle Ready Status
     socket.on('player-ready', () => {
         const p = players.find(p => p.id === socket.id);
         if(p) p.ready = !p.ready;
         io.emit('update-lobby', players);
     });
 
+    // 3. Start Game (Triggered from Lobby)
     socket.on('start-game-rotation', () => {
-        // --- Start the Shuffling Transition ---
-        io.emit('shuffle-transition', true);
+        io.emit('shuffle-transition'); // Start the animation on all screens
 
-        // Define the dealing function
-        const dealHands = () => {
-            gameStarted = true;
+        setTimeout(() => {
             let masterDeck = createMasterDeck();
-            
-            // Deal the hands internally
             players.forEach(p => {
                 p.hand = [];
                 for(let i=0; i < serverCardsThisRound; i++) p.hand.push(masterDeck.pop());
-                // Send private hand data to each specific player
                 io.to(p.id).emit('receive-hand', p.hand);
             });
 
-            // Set up the initial game state
             turnIndex = 0;
             roundEnding = false;
             stopperId = null;
             
-            // Sync all clients for the final game room transition
-            io.emit('game-transition', true);
+            io.emit('game-transition');
             io.emit('sync-round', serverCardsThisRound);
             io.emit('update-turn', { activePlayer: players[turnIndex].name, isEnding: false });
             io.emit('update-discard', "---");
-        };
-
-        // --- Delay dealing the hands to match the shuffle animation ---
-        // (3500ms allows the full 3s animation to finish)
-        setTimeout(dealHands, 3500);
+        }, 3000); // 3-second shuffle
     });
 
     socket.on('play-card', (data) => {
@@ -88,14 +77,8 @@ io.on('connection', (socket) => {
         io.emit('update-lobby', players);
     });
 
-    socket.on('trigger-out', (name) => {
-        roundEnding = true;
-        stopperId = socket.id;
-        io.emit('log-action', `${name} IS GOING OUT!`);
-    });
-
     socket.on('next-round-setup', () => {
-        serverCardsThisRound++; 
+        serverCardsThisRound++;
         io.emit('sync-round', serverCardsThisRound);
     });
 

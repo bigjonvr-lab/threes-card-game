@@ -16,7 +16,8 @@ let gameState = {
     isEnding: false,
     outPlayer: "",
     deckCount: 1,
-    started: false
+    started: false,
+    momMode: false 
 };
 
 io.on('connection', (socket) => {
@@ -28,21 +29,27 @@ io.on('connection', (socket) => {
         } else {
             p.socketId = socket.id;
         }
-        io.emit('update-lobby', gameState.players);
+        io.emit('update-lobby', { players: gameState.players, settings: { deckCount: gameState.deckCount, momMode: gameState.momMode } });
         
         if (gameState.started) {
             socket.emit('game-transition');
-            socket.emit('sync-round', gameState.round);
+            socket.emit('sync-round', { round: gameState.round, momMode: gameState.momMode });
             socket.emit('update-discard', gameState.discard);
             socket.emit('receive-hand', gameState.players.find(p => p.name === name).hand);
         }
+    });
+
+    socket.on('update-settings', (data) => {
+        gameState.deckCount = parseInt(data.deckCount);
+        gameState.momMode = data.momMode;
+        io.emit('update-lobby', { players: gameState.players, settings: { deckCount: gameState.deckCount, momMode: gameState.momMode } });
     });
 
     socket.on('player-ready', () => {
         const p = gameState.players.find(p => p.name === socket.playerName);
         if (p) {
             p.ready = !p.ready; 
-            io.emit('update-lobby', gameState.players);
+            io.emit('update-lobby', { players: gameState.players, settings: { deckCount: gameState.deckCount, momMode: gameState.momMode } });
         }
     });
 
@@ -72,7 +79,7 @@ io.on('connection', (socket) => {
         const p = gameState.players.find(p => p.name === data.name);
         if (p) {
             p.score += data.points;
-            io.emit('update-lobby', gameState.players);
+            io.emit('update-lobby', { players: gameState.players, settings: { deckCount: gameState.deckCount, momMode: gameState.momMode } });
         }
     });
 
@@ -89,7 +96,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('reset-whole-game', () => {
-        gameState = { players: [], deck: [], discard: "---", activeIdx: 0, round: 3, isEnding: false, outPlayer: "", deckCount: 1, started: false };
+        gameState = { players: [], deck: [], discard: "---", activeIdx: 0, round: 3, isEnding: false, outPlayer: "", deckCount: 1, started: false, momMode: false };
         io.emit('game-reset-broadcast');
     });
 });
@@ -98,7 +105,13 @@ function initGame() {
     gameState.deck = [];
     gameState.started = true;
     const suits = ['♥', '♦', '♣', '♠'], values = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
-    for (let s of suits) { for (let v of values) gameState.deck.push(v + s); }
+    
+    for(let i = 0; i < gameState.deckCount; i++) {
+        for (let s of suits) { 
+            for (let v of values) gameState.deck.push(v + s); 
+        }
+    }
+    
     gameState.deck.sort(() => Math.random() - 0.5);
     
     gameState.players.forEach(p => {
@@ -111,7 +124,7 @@ function initGame() {
     
     setTimeout(() => {
         gameState.discard = gameState.deck.pop();
-        io.emit('sync-round', gameState.round);
+        io.emit('sync-round', { round: gameState.round, momMode: gameState.momMode });
         io.emit('update-discard', gameState.discard);
         io.emit('game-transition');
         gameState.activeIdx = 0;

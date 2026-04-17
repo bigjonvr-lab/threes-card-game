@@ -10,9 +10,8 @@
         body { font-family: 'Graduate', serif; background: #e0e0e0; margin: 0; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
         #splash-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--scarlet); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; color: white; text-align: center; }
         .login-box { background: rgba(0,0,0,0.2); padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px; width: 85%; max-width: 350px; }
-        input { padding: 12px; border-radius: 5px; border: none; font-family: 'Graduate'; }
-        @keyframes pulse-gold { 0% { box-shadow: 0 0 0 0 rgba(241, 196, 15, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(241, 196, 15, 0); } 100% { box-shadow: 0 0 0 0 rgba(241, 196, 15, 0); } }
-        .pulse { animation: pulse-gold 1.5s infinite; border: 3px solid var(--gold) !important; }
+        input, select { padding: 12px; border-radius: 5px; border: none; font-family: 'Graduate'; }
+        
         #shuffle-view { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #111; z-index: 950; display: none; align-items: center; justify-content: center; flex-direction: column; color: var(--gold); }
         .shuffle-container { position: relative; width: 200px; height: 100px; }
         .stack { width: 50px; height: 75px; background: white; border: 2px solid var(--grey); border-radius: 5px; position: absolute; }
@@ -22,6 +21,7 @@
         .move-right { right: 0; animation: shuffleR 0.6s infinite ease-in-out; animation-delay: 0.3s; }
         @keyframes shuffleL { 0% { transform: translateX(0); } 50% { transform: translateX(75px) rotate(5deg); } 100% { transform: translateX(150px); opacity:0; } }
         @keyframes shuffleR { 0% { transform: translateX(0); } 50% { transform: translateX(-75px) rotate(-5deg); } 100% { transform: translateX(-150px); opacity:0; } }
+        
         .view-section { display: none; flex: 1; flex-direction: column; padding: 10px; overflow-y: auto; }
         .active-view { display: flex; }
         header { background: var(--scarlet); color: white; padding: 10px; text-align: center; border-bottom: 4px solid var(--grey); }
@@ -30,14 +30,19 @@
         .discard-pile { background: white; border: 4px solid var(--grey); border-radius: 10px; width: 70px; height: 100px; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin-bottom: 10px; }
         .hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 15px; }
         .card { font-family: sans-serif; background: white; padding: 12px 6px; border-radius: 6px; font-weight: bold; min-width: 45px; text-align: center; border: 1px solid #999; }
-        .card.wild-glow { border: 3px solid var(--gold); background: #fffde7; }
+        
+        .card.wild-glow { border: 3px solid var(--gold); background: #fffde7; box-shadow: 0 0 10px var(--gold); }
+        
         .card.is-point { background: var(--scarlet) !important; color: white !important; }
         button { font-family: 'Graduate', serif; padding: 12px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; }
         .btn-scarlet { background: var(--scarlet); color: white; }
         .btn-gray { background: var(--grey); color: white; }
         .btn-blue { background: var(--blue); color: white; }
+        .btn-gold { background: var(--gold); color: black; }
         .ready-text { color: #2ecc71; font-weight: bold; float: right; }
         #game-alert { position: fixed; top: 20%; left: 50%; transform: translateX(-50%); background: black; color: var(--gold); padding: 20px; border: 3px solid var(--scarlet); display: none; z-index: 3000; border-radius: 10px; }
+        
+        .settings-menu { background: #f9f9f9; padding: 15px; border-radius: 10px; border: 2px solid var(--grey); margin-bottom: 15px; color: black; display: flex; flex-direction: column; gap: 10px; }
     </style>
 </head>
 <body>
@@ -62,6 +67,17 @@
         <div id="turn-msg" style="font-size: 0.8rem;">WAITING...</div>
     </header>
     <div id="lobby-view" class="view-section active-view">
+        <div class="settings-menu">
+            <h3 style="margin:0;">LOBBY SETTINGS</h3>
+            <label>Decks: 
+                <select id="deck-select" onchange="sendSettings()">
+                    <option value="1">1 Deck</option>
+                    <option value="2">2 Decks</option>
+                    <option value="3">3 Decks</option>
+                </select>
+            </label>
+            <button id="mom-mode-btn" class="btn-gray" onclick="toggleMomMode()">MOM MODE: OFF</button>
+        </div>
         <div id="lobby-list" style="background:white; border-radius:10px; padding:15px; margin-bottom:15px; color:black;"></div>
         <button class="btn-scarlet" onclick="socket.emit('player-ready')">READY UP</button><br>
         <button class="btn-gray" onclick="socket.emit('start-game-rotation')">START GAME</button><br>
@@ -91,21 +107,38 @@
         const socket = io();
         let myName = localStorage.getItem('threesName') || "";
         let myHand = [], currentDiscard = "---", isMyTurn = false, hasDrawn = false, selectedAsPoints = [], roundOver = false, currentWild = 3;
-        let sortMode = false, firstSortIndex = null;
+        let sortMode = false, firstSortIndex = null, momMode = false;
 
         window.onload = () => { if (myName) { document.getElementById('splash-screen').style.display = 'none'; socket.emit('join-game', myName); } };
         function login() { const n = document.getElementById('name-input').value.trim(); if(!n) return; myName = n; localStorage.setItem('threesName', n); document.getElementById('splash-screen').style.display = 'none'; socket.emit('join-game', n); }
 
-        socket.on('update-lobby', (players) => {
+        function sendSettings() {
+            const deckCount = document.getElementById('deck-select').value;
+            socket.emit('update-settings', { deckCount, momMode });
+        }
+
+        function toggleMomMode() {
+            momMode = !momMode;
+            sendSettings();
+        }
+
+        socket.on('update-lobby', (data) => {
             const list = document.getElementById('lobby-list'), scores = document.getElementById('score-body');
+            const players = data.players;
             list.innerHTML = ''; scores.innerHTML = '';
             players.forEach(p => { list.innerHTML += `<div style="padding:5px 0; border-bottom:1px solid #eee;">${p.name} ${p.ready ? '<span class="ready-text">READY</span>' : ''}</div>`; });
             [...players].sort((a,b)=>a.score-b.score).forEach(p => { scores.innerHTML += `<tr><td>${p.name}</td><td style="text-align:right;">${p.score}</td></tr>`; });
+        
+            momMode = data.settings.momMode;
+            const mBtn = document.getElementById('mom-mode-btn');
+            mBtn.innerText = `MOM MODE: ${momMode ? 'ON' : 'OFF'}`;
+            mBtn.className = momMode ? 'btn-gold' : 'btn-gray';
         });
 
-        socket.on('sync-round', (roundNum) => { 
-            currentWild = roundNum; 
-            let label = (roundNum === 1) ? 'A' : (roundNum === 11) ? 'J' : (roundNum === 12) ? 'Q' : (roundNum === 13) ? 'K' : roundNum;
+        socket.on('sync-round', (data) => { 
+            currentWild = data.round; 
+            momMode = data.momMode;
+            let label = (currentWild === 1) ? 'A' : (currentWild === 11) ? 'J' : (currentWild === 12) ? 'Q' : (currentWild === 13) ? 'K' : currentWild;
             document.getElementById('wild-display').innerText = "WILD: " + label + "s";
             roundOver = false; selectedAsPoints = []; hasDrawn = false;
             document.getElementById('next-rd-btn').style.display = 'none'; document.getElementById('submit-btn').style.display = 'none';
@@ -146,11 +179,10 @@
 
         function renderHand() {
             const container = document.getElementById('my-hand'), outBtn = document.getElementById('out-btn');
-            if (canGoOut() && !roundOver) outBtn.classList.add('pulse'); else outBtn.classList.remove('pulse');
             container.innerHTML = '';
             myHand.forEach((card, i) => {
                 const div = document.createElement('div'); div.className = 'card';
-                if (getVal(card) === currentWild) div.classList.add('wild-glow');
+                if (getVal(card) === currentWild && momMode) div.classList.add('wild-glow');
                 if (selectedAsPoints.includes(i)) div.classList.add('is-point');
                 div.innerText = card; div.style.color = (selectedAsPoints.includes(i)) ? 'white' : (card.includes('♥') || card.includes('♦')) ? 'var(--scarlet)' : 'black';
                 div.onclick = () => {
